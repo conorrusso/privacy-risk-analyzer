@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Privacy Lens — GitHub README</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+  :root {
+    --black:   #0a0a0f;
+    --dark:    #0f0f1a;
+    --panel:   #13131f;
+    --border:  #1e1e3a;
+    --navy:    #1a1a2e;
+    --blue1:   #0d2b45;
+    --blue2:   #16213e;
+    --pixel:   #00c8ff;
+    --pixel2:  #0077ff;
+    --accent:  #7b2fff;
+    --green:   #00ff9d;
+    --yellow:  #ffe600;
+    --red:     #ff3860;
+    --white:   #e8eaf6;
+    --dim:     #4a4a7a;
+    --scan:    rgba(0,200,255,0.03);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; image-rendering: pixelated; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* SCANLINES */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      var(--scan) 2px,
+      var(--scan) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* PIXEL BORDER MIXIN */
+  .px-border {
+    border: 4px solid var(--pixel);
+    box-shadow:
+      0 0 0 4px var(--black),
+      0 0 0 8px var(--pixel2),
+      0 0 24px rgba(0,200,255,0.15),
+      inset 0 0 24px rgba(0,200,255,0.05);
+  }
+
+  .px-border-accent {
+    border: 4px solid var(--accent);
+    box-shadow:
+      0 0 0 4px var(--black),
+      0 0 0 8px var(--accent),
+      0 0 24px rgba(123,47,255,0.2),
+      inset 0 0 24px rgba(123,47,255,0.05);
+  }
+
+  /* ── HERO ─────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    padding: 60px 40px 50px;
+    background: var(--dark);
+    border-bottom: 4px solid var(--border);
+    overflow: hidden;
+    text-align: center;
+  }
+
+  /* Pixel grid background */
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* THE BIG LENS - pure CSS pixel art */
+  .lens-container {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 32px;
+    animation: lens-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes lens-pulse {
+    0%, 100% { filter: drop-shadow(0 0 12px var(--pixel)) drop-shadow(0 0 24px var(--pixel2)); }
+    50%       { filter: drop-shadow(0 0 20px var(--pixel)) drop-shadow(0 0 40px var(--pixel2)) drop-shadow(0 0 60px var(--accent)); }
+  }
+
+  .lens-svg {
+    width: 180px;
+    height: 180px;
+  }
+
+  /* scanline sweep inside lens */
+  .lens-scan {
+    position: absolute;
+    top: 20px; left: 20px; right: 20px;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, var(--pixel), var(--green), var(--pixel), transparent);
+    animation: scan-sweep 2.4s linear infinite;
+    opacity: 0.7;
+    border-radius: 2px;
+  }
+
+  @keyframes scan-sweep {
+    0%   { top: 20px; opacity: 0; }
+    10%  { opacity: 0.8; }
+    90%  { opacity: 0.8; }
+    100% { top: 150px; opacity: 0; }
+  }
+
+  /* TITLE */
+  .hero-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(14px, 3vw, 22px);
+    color: var(--pixel);
+    letter-spacing: 3px;
+    text-shadow:
+      4px 4px 0 var(--pixel2),
+      0 0 20px var(--pixel),
+      0 0 40px rgba(0,200,255,0.4);
+    line-height: 1.5;
+    position: relative;
+    z-index: 1;
+    animation: title-flicker 8s ease-in-out infinite;
+  }
+
+  @keyframes title-flicker {
+    0%,94%,96%,100% { opacity: 1; }
+    95% { opacity: 0.85; }
+  }
+
+  .hero-sub {
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    color: var(--dim);
+    margin-top: 12px;
+    letter-spacing: 2px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-sub span { color: var(--green); }
+
+  /* BADGE ROW */
+  .badge-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 28px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .badge {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    padding: 6px 10px;
+    border: 2px solid;
+    letter-spacing: 1px;
+    animation: badge-blink 4s ease-in-out infinite;
+  }
+
+  .badge-blue  { color: var(--pixel);  border-color: var(--pixel);  background: rgba(0,200,255,0.08); }
+  .badge-green { color: var(--green);  border-color: var(--green);  background: rgba(0,255,157,0.08); animation-delay: 0.5s; }
+  .badge-purple{ color: var(--accent); border-color: var(--accent); background: rgba(123,47,255,0.08); animation-delay: 1s; }
+  .badge-yellow{ color: var(--yellow); border-color: var(--yellow); background: rgba(255,230,0,0.08); animation-delay: 1.5s; }
+
+  @keyframes badge-blink {
+    0%,88%,92%,100% { opacity: 1; }
+    90% { opacity: 0.5; }
+  }
+
+  /* ── LAYOUT ───────────────────────────────────────────── */
+  .content {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── SECTION HEADER ───────────────────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 52px 0 20px;
+  }
+
+  .section-num {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--black);
+    background: var(--pixel);
+    padding: 6px 10px;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--pixel);
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0 var(--pixel2);
+  }
+
+  .section-line {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, var(--pixel2), transparent);
+  }
+
+  /* ── WHAT IS THIS ─────────────────────────────────────── */
+  .what-box {
+    background: var(--panel);
+    border-left: 6px solid var(--pixel);
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .what-box::before {
+    content: '// README.md';
+    position: absolute;
+    top: 10px; right: 16px;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  .what-box p {
+    font-size: 20px;
+    color: var(--white);
+    line-height: 1.7;
+  }
+
+  .what-box p + p { margin-top: 12px; }
+  .what-box .hl  { color: var(--pixel); }
+  .what-box .hl2 { color: var(--green); }
+  .what-box .hl3 { color: var(--yellow); }
+
+  /* ── 3-LAYER DIAGRAM ──────────────────────────────────── */
+  .pipeline {
+    display: grid;
+    grid-template-columns: 1fr 32px 1fr 32px 1fr;
+    gap: 0;
+    margin: 20px 0 32px;
+    align-items: center;
+  }
+
+  .pipe-stage {
+    background: var(--panel);
+    border: 3px solid var(--border);
+    padding: 20px 16px;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .pipe-stage:hover { border-color: var(--pixel); }
+
+  .pipe-stage .pipe-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+
+  .pipe-stage .pipe-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--pixel);
+    display: block;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .pipe-stage .pipe-desc {
+    font-size: 16px;
+    color: var(--dim);
+    line-height: 1.4;
+  }
+
+  .pipe-arrow {
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    color: var(--pixel2);
+    text-shadow: 0 0 8px var(--pixel);
+    animation: arrow-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes arrow-pulse {
+    0%,100% { opacity: 0.4; transform: translateX(0); }
+    50%      { opacity: 1;   transform: translateX(4px); }
+  }
+
+  /* ── FRAMEWORK GRID ───────────────────────────────────── */
+  .framework-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    margin: 20px 0;
+    background: var(--border);
+    border: 3px solid var(--border);
+  }
+
+  .dim-cell {
+    background: var(--panel);
+    padding: 16px 12px;
+    position: relative;
+    cursor: default;
+    transition: background 0.15s;
+    overflow: hidden;
+  }
+
+  .dim-cell:hover { background: var(--blue1); }
+
+  .dim-cell::before {
+    content: attr(data-num);
+    position: absolute;
+    top: 8px; right: 10px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--dim);
+  }
+
+  .dim-icon {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 4px rgba(0,200,255,0.5));
+  }
+
+  .dim-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    color: var(--pixel);
+    line-height: 1.6;
+    letter-spacing: 0.5px;
+  }
+
+  .dim-reg {
+    font-size: 14px;
+    color: var(--dim);
+    margin-top: 6px;
+    display: block;
+  }
+
+  /* hover reveal */
+  .dim-detail {
+    position: absolute;
+    inset: 0;
+    background: var(--navy);
+    border: 2px solid var(--pixel);
+    padding: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    z-index: 10;
+  }
+
+  .dim-cell:hover .dim-detail { opacity: 1; }
+
+  .dim-detail p {
+    font-size: 14px;
+    color: var(--white);
+    line-height: 1.5;
+  }
+
+  .dim-detail .flag {
+    font-size: 13px;
+    color: var(--red);
+    margin-top: 6px;
+  }
+
+  /* ── RISK TIERS ───────────────────────────────────────── */
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .tier-card {
+    background: var(--panel);
+    border: 3px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tier-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .tier-high   { border-color: var(--red);    } .tier-high::after   { background: var(--red); }
+  .tier-medium { border-color: #ff8c00; }       .tier-medium::after { background: #ff8c00; }
+  .tier-low    { border-color: var(--green); }  .tier-low::after    { background: var(--green); }
+  .tier-ai     { border-color: var(--accent); } .tier-ai::after     { background: var(--accent); }
+
+  .tier-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .tier-high   .tier-label { color: var(--red);    }
+  .tier-medium .tier-label { color: #ff8c00; }
+  .tier-low    .tier-label { color: var(--green);  }
+  .tier-ai     .tier-label { color: var(--accent); }
+
+  .tier-trigger {
+    font-size: 15px;
+    color: var(--dim);
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+    font-style: italic;
+  }
+
+  .tier-action {
+    font-size: 16px;
+    color: var(--white);
+    line-height: 1.6;
+  }
+
+  .tier-action li {
+    list-style: none;
+    padding-left: 18px;
+    position: relative;
+    margin-bottom: 4px;
+  }
+
+  .tier-action li::before { content: '▸'; position: absolute; left: 0; color: inherit; }
+  .tier-high   .tier-action li::before { color: var(--red); }
+  .tier-medium .tier-action li::before { color: #ff8c00; }
+  .tier-low    .tier-action li::before { color: var(--green); }
+  .tier-ai     .tier-action li::before { color: var(--accent); }
+
+  /* ── STACK ────────────────────────────────────────────── */
+  .stack-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    margin: 20px 0;
+    background: var(--border);
+  }
+
+  .stack-cell {
+    background: var(--panel);
+    padding: 20px 14px;
+    text-align: center;
+  }
+
+  .stack-icon { font-size: 32px; display: block; margin-bottom: 10px; }
+
+  .stack-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--pixel);
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .stack-role { font-size: 15px; color: var(--dim); }
+
+  /* ── PHASES ───────────────────────────────────────────── */
+  .phase-list { margin: 20px 0; }
+
+  .phase-item {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 0;
+    margin-bottom: 4px;
+    min-height: 72px;
+  }
+
+  .phase-num {
+    background: var(--pixel2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+  }
+
+  .phase-num span:first-child {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--black);
+    letter-spacing: 1px;
+  }
+
+  .phase-num span:last-child {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--black);
+    margin-top: 4px;
+  }
+
+  .phase-body {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-left: none;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .phase-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--white);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .phase-meta {
+    font-size: 16px;
+    color: var(--dim);
+  }
+
+  .phase-meta .dur { color: var(--yellow); }
+  .phase-meta .deliv { color: var(--green); }
+
+  /* PROGRESS BAR */
+  .phase-progress {
+    height: 6px;
+    background: var(--border);
+    margin-top: 8px;
+    position: relative;
+  }
+
+  .phase-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--pixel2), var(--pixel));
+    animation: progress-fill 1.5s ease-out forwards;
+    width: 0;
+  }
+
+  @keyframes progress-fill {
+    to { width: var(--target-width); }
+  }
+
+  /* ── CTA / INSTALL ────────────────────────────────────── */
+  .cta-box {
+    margin: 40px 0 20px;
+    background: var(--panel);
+    border: 4px solid var(--green);
+    box-shadow: 0 0 0 4px var(--black), 0 0 0 8px var(--green), 0 0 32px rgba(0,255,157,0.1);
+    padding: 32px;
+    text-align: center;
+  }
+
+  .cta-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 13px;
+    color: var(--green);
+    text-shadow: 2px 2px 0 #007745, 0 0 16px var(--green);
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+  }
+
+  .code-block {
+    background: var(--black);
+    border: 2px solid var(--dim);
+    padding: 16px 20px;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    color: var(--green);
+    text-align: left;
+    margin: 16px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .code-block::before {
+    content: '$ ';
+    color: var(--pixel);
+  }
+
+  .code-block .cursor {
+    display: inline-block;
+    width: 10px;
+    height: 18px;
+    background: var(--green);
+    vertical-align: text-bottom;
+    animation: cursor-blink 1s step-end infinite;
+  }
+
+  @keyframes cursor-blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  /* ── FOOTER ───────────────────────────────────────────── */
+  .footer {
+    background: var(--dark);
+    border-top: 4px solid var(--border);
+    padding: 32px 40px;
+    text-align: center;
+  }
+
+  .footer-logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--pixel);
+    letter-spacing: 3px;
+    text-shadow: 2px 2px 0 var(--pixel2), 0 0 16px var(--pixel);
+    margin-bottom: 12px;
+  }
+
+  .footer-tag {
+    font-size: 18px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  .footer-tag span { color: var(--green); }
+
+  /* ── PIXEL CORNER ORNAMENTS ───────────────────────────── */
+  .corner-ornament {
+    position: relative;
+  }
+
+  .corner-ornament::before,
+  .corner-ornament::after {
+    content: '◈';
+    position: absolute;
+    font-size: 12px;
+    color: var(--pixel2);
+    top: -8px;
+  }
+
+  .corner-ornament::before { left: -4px; }
+  .corner-ornament::after  { right: -4px; }
+
+  /* ── UTILITY ──────────────────────────────────────────── */
+  .mono {
+    font-family: 'VT323', monospace;
+    color: var(--pixel);
+    font-size: 20px;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    padding: 3px 7px;
+    background: rgba(0,200,255,0.12);
+    border: 1px solid var(--pixel2);
+    color: var(--pixel);
+    margin: 2px;
+  }
+
+  /* ── RESPONSIVE ───────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .framework-grid { grid-template-columns: repeat(2, 1fr); }
+    .tier-grid      { grid-template-columns: 1fr; }
+    .stack-row      { grid-template-columns: repeat(2, 1fr); }
+    .pipeline       { grid-template-columns: 1fr; }
+    .pipe-arrow     { transform: rotate(90deg); }
+    .hero-title     { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ HERO ══════════════════════════ -->
+<div class="hero">
+  <div class="lens-container">
+    <svg class="lens-svg" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer bezel - pixelated circle -->
+      <rect x="16" y="56" width="8" height="68" fill="#0077ff"/>
+      <rect x="24" y="32" width="8" height="8"  fill="#0077ff"/>
+      <rect x="32" y="24" width="8" height="8"  fill="#0077ff"/>
+      <rect x="24" y="140" width="8" height="8" fill="#0077ff"/>
+      <rect x="32" y="148" width="8" height="8" fill="#0077ff"/>
+      <rect x="56" y="16" width="68" height="8" fill="#0077ff"/>
+      <rect x="56" y="156" width="68" height="8" fill="#0077ff"/>
+      <rect x="140" y="24" width="8" height="8" fill="#0077ff"/>
+      <rect x="148" y="32" width="8" height="8" fill="#0077ff"/>
+      <rect x="140" y="148" width="8" height="8" fill="#0077ff"/>
+      <rect x="148" y="140" width="8" height="8" fill="#0077ff"/>
+      <rect x="156" y="56" width="8" height="68" fill="#0077ff"/>
+
+      <!-- Glass body -->
+      <rect x="24" y="40" width="8" height="100" fill="#00c8ff" opacity="0.6"/>
+      <rect x="32" y="32" width="8" height="8"  fill="#00c8ff" opacity="0.6"/>
+      <rect x="148" y="40" width="8" height="100" fill="#00c8ff" opacity="0.6"/>
+      <rect x="140" y="32" width="8" height="8"  fill="#00c8ff" opacity="0.6"/>
+      <rect x="40" y="24" width="100" height="8" fill="#00c8ff" opacity="0.6"/>
+      <rect x="40" y="148" width="100" height="8" fill="#00c8ff" opacity="0.6"/>
+
+      <!-- Inner lens glass fill -->
+      <rect x="32" y="40" width="116" height="100" fill="#0d1b2e" opacity="0.95"/>
+      <rect x="24" y="48" width="8" height="84" fill="#0d1b2e" opacity="0.95"/>
+      <rect x="148" y="48" width="8" height="84" fill="#0d1b2e" opacity="0.95"/>
+
+      <!-- Lens tint layers -->
+      <rect x="32" y="40" width="116" height="100" fill="#00c8ff" opacity="0.04"/>
+
+      <!-- Lens reflection highlight (top-left corner) -->
+      <rect x="40" y="44" width="32" height="4"  fill="#00c8ff" opacity="0.35"/>
+      <rect x="40" y="48" width="16" height="4"  fill="#00c8ff" opacity="0.20"/>
+      <rect x="36" y="48" width="4"  height="28" fill="#00c8ff" opacity="0.20"/>
+
+      <!-- Inner iris rings -->
+      <!-- Ring 3 (outer) -->
+      <rect x="48" y="56" width="84" height="4"  fill="#0077ff" opacity="0.5"/>
+      <rect x="48" y="120" width="84" height="4" fill="#0077ff" opacity="0.5"/>
+      <rect x="44" y="60" width="4"  height="60" fill="#0077ff" opacity="0.5"/>
+      <rect x="132" y="60" width="4" height="60" fill="#0077ff" opacity="0.5"/>
+      <!-- Ring 2 -->
+      <rect x="60" y="64" width="60" height="4"  fill="#00c8ff" opacity="0.5"/>
+      <rect x="60" y="112" width="60" height="4" fill="#00c8ff" opacity="0.5"/>
+      <rect x="56" y="68" width="4"  height="44" fill="#00c8ff" opacity="0.5"/>
+      <rect x="120" y="68" width="4" height="44" fill="#00c8ff" opacity="0.5"/>
+      <!-- Crosshair center -->
+      <rect x="68" y="88" width="44" height="4"  fill="#00ff9d" opacity="0.6"/>
+      <rect x="88" y="68" width="4"  height="44" fill="#00ff9d" opacity="0.6"/>
+      <!-- Center dot -->
+      <rect x="84" y="84" width="12" height="12" fill="#00ff9d" opacity="0.9"/>
+      <rect x="86" y="86" width="8"  height="8"  fill="#ffffff" opacity="0.6"/>
+
+      <!-- Glow overlay -->
+      <rect x="32" y="40" width="116" height="100" fill="url(#lensGlow)" opacity="0.3"/>
+
+      <defs>
+        <radialGradient id="lensGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#00c8ff" stop-opacity="0.6"/>
+          <stop offset="60%"  stop-color="#0077ff" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#0077ff" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+    </svg>
+    <div class="lens-scan"></div>
+  </div>
+
+  <h1 class="hero-title">THE PRIVACY LENS</h1>
+  <p class="hero-sub">AI-Powered Vendor Privacy &amp; Contract Risk Analyzer<br><span>// open source · n8n · claude api · anecdotes</span></p>
+
+  <div class="badge-row">
+    <span class="badge badge-blue">v0.1.0</span>
+    <span class="badge badge-green">MIT LICENSE</span>
+    <span class="badge badge-purple">OPEN SOURCE</span>
+    <span class="badge badge-yellow">8 DIMENSIONS</span>
+    <span class="badge badge-blue">n8n WORKFLOW</span>
+    <span class="badge badge-green">GDPR · CCPA · EU AI ACT</span>
+  </div>
+</div>
+
+<!-- ══════════════════════ CONTENT ════════════════════════ -->
+<div class="content">
+
+  <!-- WHAT IS THIS -->
+  <div class="section-header">
+    <div class="section-num">00</div>
+    <div class="section-title">WHAT IS THIS</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="what-box">
+    <p>
+      Most TPRM programs evaluate vendors on <span class="hl">security controls</span> — SOC 2 reports, pen tests, vulnerability management.
+      Almost none of them evaluate <span class="hl2">privacy risk</span> — what vendors actually do with your data, and what protections exist for your data subjects.
+    </p>
+    <p>
+      <span class="mono">privacy-risk-analyzer</span> is an open source <span class="hl">n8n workflow</span> that applies <span class="hl3">The Privacy Lens Framework</span> to vendor artifacts —
+      scoring them across 8 dimensions, routing findings to legal with AI-drafted contract language, and logging evidence automatically.
+    </p>
+    <p>
+      Built for GRC teams <span class="hl2">without dedicated privacy counsel</span>. Especially useful for teams rapidly onboarding <span class="hl">AI vendors</span>.
+    </p>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <div class="section-title">HOW IT WORKS</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe-stage">
+      <span class="pipe-icon">📥</span>
+      <span class="pipe-name">INGEST</span>
+      <span class="pipe-desc">Privacy policy URL, DPA PDF, SOC 2 report, intake form responses</span>
+    </div>
+    <div class="pipe-arrow">▶</div>
+    <div class="pipe-stage">
+      <span class="pipe-icon">🔬</span>
+      <span class="pipe-name">ANALYZE</span>
+      <span class="pipe-desc">Claude API scores vendor across 8 privacy dimensions + detects AI/ML vendor flag</span>
+    </div>
+    <div class="pipe-arrow">▶</div>
+    <div class="pipe-stage">
+      <span class="pipe-icon">⚡</span>
+      <span class="pipe-name">ACT</span>
+      <span class="pipe-desc">Routes to legal, vendor, Anecdotes, or escalation — automatically. No manual triage.</span>
+    </div>
+  </div>
+
+  <!-- FRAMEWORK -->
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <div class="section-title">THE PRIVACY LENS FRAMEWORK</div>
+    <div class="section-line"></div>
+  </div>
+
+  <p style="font-size:17px; color:var(--dim); margin-bottom:16px; letter-spacing:1px;">
+    ◈ HOVER EACH DIMENSION TO SEE WHAT CLAUDE EVALUATES ◈
+  </p>
+
+  <div class="framework-grid">
+
+    <div class="dim-cell" data-num="D1">
+      <span class="dim-icon">🗜️</span>
+      <span class="dim-name">DATA MINIMIZATION</span>
+      <span class="dim-reg">GDPR Art. 5(1)(c)</span>
+      <div class="dim-detail">
+        <p>Does the vendor collect only what is necessary? Are retention windows defined?</p>
+        <p class="flag">🚩 Vague "business purposes" · no retention window</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D2">
+      <span class="dim-icon">🔗</span>
+      <span class="dim-name">SUB-PROCESSOR TRANSPARENCY</span>
+      <span class="dim-reg">GDPR Art. 28(2)</span>
+      <div class="dim-detail">
+        <p>Is a sub-processor list published? Are customers notified of changes?</p>
+        <p class="flag">🚩 No list · no change notification · broad "third parties"</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D3">
+      <span class="dim-icon">🧑‍⚖️</span>
+      <span class="dim-name">DATA SUBJECT RIGHTS</span>
+      <span class="dim-reg">GDPR Art. 15–22 · CCPA</span>
+      <div class="dim-detail">
+        <p>Can users exercise DSAR, deletion, portability, and correction rights?</p>
+        <p class="flag">🚩 No DSAR process · no deletion mechanism · no timelines</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D4">
+      <span class="dim-icon">🌍</span>
+      <span class="dim-name">TRANSFER MECHANISMS</span>
+      <span class="dim-reg">GDPR Chapter V</span>
+      <div class="dim-detail">
+        <p>Are cross-border transfers covered by SCCs, BCRs, or adequacy decisions?</p>
+        <p class="flag">🚩 No transfer basis · reliance on invalidated Privacy Shield</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D5">
+      <span class="dim-icon">🚨</span>
+      <span class="dim-name">BREACH NOTIFICATION</span>
+      <span class="dim-reg">GDPR Art. 33</span>
+      <div class="dim-detail">
+        <p>What are notification timelines and obligations to customers?</p>
+        <p class="flag">🚩 "Reasonable time" language · no customer notification obligation</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D6">
+      <span class="dim-icon">🤖</span>
+      <span class="dim-name">AI/ML DATA USAGE</span>
+      <span class="dim-reg">EU AI Act · GDPR Art. 22</span>
+      <div class="dim-detail">
+        <p>Is customer data used to train models? Is there an opt-out? Who are AI sub-processors?</p>
+        <p class="flag">🚩 No training opt-out · "improve services" language · AI sub-processors undisclosed</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D7">
+      <span class="dim-icon">🗑️</span>
+      <span class="dim-name">RETENTION & DELETION</span>
+      <span class="dim-reg">GDPR Art. 5(1)(e) · Art. 17</span>
+      <div class="dim-detail">
+        <p>Are deletion SLAs defined? What happens to data on contract termination?</p>
+        <p class="flag">🚩 No deletion SLA · no secure deletion standard · retained after termination</p>
+      </div>
+    </div>
+
+    <div class="dim-cell" data-num="D8">
+      <span class="dim-icon">📄</span>
+      <span class="dim-name">DPA COMPLETENESS</span>
+      <span class="dim-reg">GDPR Art. 28</span>
+      <div class="dim-detail">
+        <p>Does the DPA include all required Art. 28 elements: subject matter, duration, nature, obligations?</p>
+        <p class="flag">🚩 Missing processor obligations · no audit rights · no sub-processor controls</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RISK ROUTING -->
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <div class="section-title">RISK ROUTING</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="tier-grid">
+
+    <div class="tier-card tier-high">
+      <div class="tier-label">🔴 HIGH RISK</div>
+      <div class="tier-trigger">Any dimension scores 1 · OR weighted avg &lt; 2.5</div>
+      <ul class="tier-action">
+        <li>Jira ticket created → Priority: HIGH</li>
+        <li>Legal email with Contract Negotiation Brief</li>
+        <li>Slack alert → #legal-privacy-review</li>
+        <li>Claude drafts suggested contract language</li>
+        <li>Anecdotes vendor record → HIGH tier</li>
+      </ul>
+    </div>
+
+    <div class="tier-card tier-medium">
+      <div class="tier-label">🟠 MEDIUM RISK</div>
+      <div class="tier-trigger">Weighted avg 2.5–3.5 · no dimension below 2</div>
+      <ul class="tier-action">
+        <li>Targeted follow-up questionnaire generated</li>
+        <li>Email sent to vendor (gaps only)</li>
+        <li>Jira ticket → Priority: MEDIUM</li>
+        <li>Anecdotes vendor record → MEDIUM tier</li>
+      </ul>
+    </div>
+
+    <div class="tier-card tier-low">
+      <div class="tier-label">🟢 LOW RISK</div>
+      <div class="tier-trigger">Weighted avg &gt; 3.5 · no dimension below 3</div>
+      <ul class="tier-action">
+        <li>AI summary logged as Anecdotes evidence</li>
+        <li>Vendor record → LOW tier</li>
+        <li>Requestor notified with clean summary</li>
+        <li>Fully automated — zero manual triage</li>
+      </ul>
+    </div>
+
+    <div class="tier-card tier-ai">
+      <div class="tier-label">🤖 AI VENDOR ESCALATION</div>
+      <div class="tier-trigger">AI/ML vendor detected — regardless of score</div>
+      <ul class="tier-action">
+        <li>Auto-escalate to GRC + Legal simultaneously</li>
+        <li>AI-specific DPA addendum questions generated</li>
+        <li>Slack alert → #ai-governance</li>
+        <li>Jira ticket tagged: AI-Vendor</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <div class="section-title">TECH STACK</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="stack-row">
+    <div class="stack-cell">
+      <span class="stack-icon">⚙️</span>
+      <span class="stack-name">n8n</span>
+      <span class="stack-role">Workflow orchestration</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">🧠</span>
+      <span class="stack-name">CLAUDE API</span>
+      <span class="stack-role">AI analysis engine</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">🗂️</span>
+      <span class="stack-name">ANECDOTES</span>
+      <span class="stack-role">GRC system of record</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">🎫</span>
+      <span class="stack-name">JIRA / LINEAR</span>
+      <span class="stack-role">Ticket routing</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">💬</span>
+      <span class="stack-name">SLACK</span>
+      <span class="stack-role">Notifications</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">📧</span>
+      <span class="stack-name">GMAIL</span>
+      <span class="stack-role">Legal + vendor emails</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">📁</span>
+      <span class="stack-name">GOOGLE DRIVE</span>
+      <span class="stack-role">Report storage</span>
+    </div>
+    <div class="stack-cell">
+      <span class="stack-icon">🐙</span>
+      <span class="stack-name">GITHUB</span>
+      <span class="stack-role">Open source dist.</span>
+    </div>
+  </div>
+
+  <!-- BUILD PHASES -->
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <div class="section-title">BUILD PHASES</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="phase-list">
+
+    <div class="phase-item">
+      <div class="phase-num" style="background:#0077ff">
+        <span>PHASE</span><span>1</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-title">PRIVACY POLICY ANALYZER</div>
+        <div class="phase-meta"><span class="dur">⏱ 1–2 weeks</span> · <span class="deliv">Deliverable: Working analysis workflow + PT-1 prompt</span></div>
+        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-num" style="background:#2563eb">
+        <span>PHASE</span><span>2</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-title">DPA GAP CHECKER + CONTRACT BRIEF</div>
+        <div class="phase-meta"><span class="dur">⏱ 1–2 weeks</span> · <span class="deliv">Deliverable: DPA analysis + legal-ready negotiation brief</span></div>
+        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-num" style="background:#7b2fff">
+        <span>PHASE</span><span>3</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-title">AI VENDOR DETECTION + ADDENDUM</div>
+        <div class="phase-meta"><span class="dur">⏱ 1 week</span> · <span class="deliv">Deliverable: AI/ML detection + DPA addendum questions</span></div>
+        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-num" style="background:#1a1a2e; border: 3px solid #00c8ff">
+        <span style="color:#00c8ff">PHASE</span><span style="color:#00c8ff">4</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-title">FULL PIPELINE + ACTION ROUTING</div>
+        <div class="phase-meta"><span class="dur">⏱ 1–2 weeks</span> · <span class="deliv">Deliverable: Complete end-to-end workflow + all integrations</span></div>
+        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-num" style="background:#16a34a">
+        <span>PHASE</span><span>5</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-title">OPEN SOURCE RELEASE + LINKEDIN LAUNCH</div>
+        <div class="phase-meta"><span class="dur">⏱ 1 week</span> · <span class="deliv">Deliverable: GitHub repo live + 3-post LinkedIn campaign</span></div>
+        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LIVE ASSESSMENT: ANECDOTES -->
+  <div class="section-header">
+    <div class="section-num">06</div>
+    <div class="section-title">LIVE ASSESSMENT: ANECDOTES A.I LTD</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div style="background:var(--panel); border:3px solid var(--red); box-shadow:0 0 0 3px var(--black),0 0 0 6px var(--red),0 0 24px rgba(255,56,96,0.12); padding:28px; margin-bottom:28px; position:relative; overflow:hidden;">
+    <div style="position:absolute;top:12px;right:16px;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);letter-spacing:1px;">// WORKFLOW OUTPUT · privacy-policy-analyzer.json</div>
+
+    <!-- header row -->
+    <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
+      <div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;">VENDOR</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:13px;color:var(--white);letter-spacing:1px;">Anecdotes A.I Ltd</div>
+      </div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;">RISK TIER</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:16px;color:var(--red);text-shadow:2px 2px 0 #7a0020,0 0 16px var(--red);letter-spacing:2px;">⬛ HIGH</div>
+      </div>
+    </div>
+
+    <!-- score + flags row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:var(--border);margin-bottom:20px;">
+      <div style="background:var(--navy);padding:16px 14px;text-align:center;">
+        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">WEIGHTED AVG</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:22px;color:var(--red);text-shadow:0 0 12px var(--red);">1.8<span style="font-size:12px;color:var(--dim)"> / 5</span></div>
+      </div>
+      <div style="background:var(--navy);padding:16px 14px;text-align:center;">
+        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">AI VENDOR</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:18px;color:var(--accent);text-shadow:0 0 10px var(--accent);">TRUE ✓</div>
+      </div>
+      <div style="background:var(--navy);padding:16px 14px;text-align:center;">
+        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">ESCALATION</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--yellow);line-height:1.6;">GRC + LEGAL<br>AUTO-ROUTED</div>
+      </div>
+    </div>
+
+    <!-- triggered actions -->
+    <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:10px;">TRIGGERED ACTIONS</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--red);color:var(--red);background:rgba(255,56,96,0.08);">🎫 JIRA · HIGH</span>
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--accent);color:var(--accent);background:rgba(123,47,255,0.08);">🤖 AI-VENDOR TAG</span>
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--yellow);color:var(--yellow);background:rgba(255,230,0,0.08);">💬 #AI-GOVERNANCE</span>
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--pixel);color:var(--pixel);background:rgba(0,200,255,0.08);">📁 DRIVE LOGGED</span>
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--red);color:var(--red);background:rgba(255,56,96,0.08);">📧 LEGAL BRIEFED</span>
+    </div>
+  </div>
+
+  <!-- GET STARTED -->
+  <div class="section-header">
+    <div class="section-num">07</div>
+    <div class="section-title">GET STARTED</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="cta-box">
+    <div class="cta-title">▶ IMPORT + RUN IN MINUTES</div>
+
+    <div style="text-align:left; max-width:600px; margin:0 auto;">
+      <p style="font-size:17px; color:var(--dim); margin-bottom:8px; letter-spacing:1px;">1. Clone the repo</p>
+      <div class="code-block">git clone github.com/conorrusso/privacy-risk-analyzer<span class="cursor"></span></div>
+
+      <p style="font-size:17px; color:var(--dim); margin-bottom:8px; margin-top:16px; letter-spacing:1px;">2. Import workflow into n8n</p>
+      <div class="code-block">Import › workflows/ai-vendor-assessment.json<span class="cursor"></span></div>
+
+      <p style="font-size:17px; color:var(--dim); margin-bottom:8px; margin-top:16px; letter-spacing:1px;">3. Add credentials + activate</p>
+      <div class="code-block">ANTHROPIC_API_KEY + ANECDOTES_API_KEY<span class="cursor"></span></div>
+    </div>
+
+    <div style="margin-top:24px;">
+      <span class="tag">GDPR</span>
+      <span class="tag">CCPA</span>
+      <span class="tag">EU AI ACT</span>
+      <span class="tag">SOC 2</span>
+      <span class="tag">ISO 27001</span>
+      <span class="tag">FEDRAMP</span>
+      <span class="tag">TPRM</span>
+      <span class="tag">PRIVACY</span>
+      <span class="tag">GRC</span>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ══════════════════════ FOOTER ════════════════════════ -->
+<div class="footer">
+  <div class="footer-logo">THE PRIVACY LENS</div>
+  <div class="footer-tag">
+    Built by <span>Conor</span> · Compliance &amp; GRC · Anecdotes<br>
+    <span>Open Source · MIT License · Contributions Welcome</span>
+  </div>
+</div>
+
+</body>
+</html>
