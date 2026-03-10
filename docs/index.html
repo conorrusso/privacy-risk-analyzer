@@ -1188,6 +1188,108 @@
     </div>
   </div>
 
+
+  <!-- SWITCHING AI PROVIDERS -->
+  <div class="section-header">
+    <div class="section-num">08</div>
+    <div class="section-title">SWITCHING AI PROVIDERS</div>
+    <div class="section-line"></div>
+  </div>
+
+  <p style="font-size:17px; color:var(--dim); margin-bottom:20px; letter-spacing:1px;">
+    Configure <strong style="color:var(--pixel);">Node 4 (HTTP Request)</strong> in n8n with any of the providers below. Swap URL, headers, and body — everything else stays the same.
+  </p>
+
+  <!-- provider cards -->
+  <div style="display:flex; flex-direction:column; gap:3px; margin-bottom:32px;">
+
+    <!-- 1. Anthropic Claude -->
+    <div style="background:var(--panel); border:3px solid var(--pixel); padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
+      <div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:var(--pixel); letter-spacing:1px; margin-bottom:6px;">🧠 CLAUDE</div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">claude-sonnet-<br>4-20250514</div>
+        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--green);">~$0.01–0.03</div>
+        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
+      </div>
+      <div style="font-size:15px; line-height:1.8; color:var(--white);">
+        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:var(--pixel);">api.anthropic.com/v1/messages</span></div>
+        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">x-api-key: YOUR_KEY</span> &nbsp;<span style="color:var(--dim);">+ anthropic-version: 2023-06-01</span></div>
+        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · max_tokens · messages[{role,content}]</span></div>
+        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.content[0].text }}</span></div>
+        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → console.anthropic.com → API Keys</div>
+      </div>
+    </div>
+
+    <!-- 2. OpenAI GPT-4o -->
+    <div style="background:var(--panel); border:3px solid #10a37f; padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
+      <div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:#10a37f; letter-spacing:1px; margin-bottom:6px;">🟢 GPT-4O</div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">gpt-4o</div>
+        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--yellow);">~$0.05–0.10</div>
+        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
+      </div>
+      <div style="font-size:15px; line-height:1.8; color:var(--white);">
+        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:#10a37f;">api.openai.com/v1/chat/completions</span></div>
+        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">Authorization: Bearer YOUR_KEY</span></div>
+        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · max_tokens · temperature · messages[{role,content}]</span></div>
+        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.choices[0].message.content }}</span></div>
+        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → platform.openai.com → API Keys</div>
+      </div>
+    </div>
+
+    <!-- 3. Google Gemini -->
+    <div style="background:var(--panel); border:3px solid #fbbc04; padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
+      <div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:#fbbc04; letter-spacing:1px; margin-bottom:6px;">🔵 GEMINI</div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">gemini-2.0-flash</div>
+        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--green);">~$0.00–0.01</div>
+        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
+      </div>
+      <div style="font-size:15px; line-height:1.8; color:var(--white);">
+        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:#fbbc04;">generativelanguage.googleapis.com/v1beta/models/<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gemini-2.0-flash:generateContent?key=YOUR_KEY</span></div>
+        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">API key in URL query param — no header needed</span></div>
+        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">contents[{parts[{text}]}] · generationConfig{temperature,maxOutputTokens}</span></div>
+        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.candidates[0].content.parts[0].text }}</span></div>
+        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → aistudio.google.com → Get API key · Free tier available</div>
+      </div>
+    </div>
+
+    <!-- 4. Mistral -->
+    <div style="background:var(--panel); border:3px solid #ff7000; padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
+      <div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:#ff7000; letter-spacing:1px; margin-bottom:6px;">🌪 MISTRAL</div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">mistral-large-<br>latest</div>
+        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--green);">~$0.02–0.05</div>
+        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
+      </div>
+      <div style="font-size:15px; line-height:1.8; color:var(--white);">
+        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:#ff7000;">api.mistral.ai/v1/chat/completions</span></div>
+        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">Authorization: Bearer YOUR_KEY</span></div>
+        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · max_tokens · temperature · messages[{role,content}]</span></div>
+        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.choices[0].message.content }}</span></div>
+        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → console.mistral.ai → API Keys · mistral-small at ~10× lower cost</div>
+      </div>
+    </div>
+
+    <!-- 5. Ollama -->
+    <div style="background:var(--panel); border:3px solid var(--green); padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
+      <div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:var(--green); letter-spacing:1px; margin-bottom:6px;">🦙 OLLAMA</div>
+        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">mistral /<br>llama3.1 / phi3</div>
+        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:9px; color:var(--green); text-shadow:0 0 8px var(--green);">FREE</div>
+        <div style="margin-top:4px; font-size:13px; color:var(--dim);">runs locally</div>
+      </div>
+      <div style="font-size:15px; line-height:1.8; color:var(--white);">
+        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:var(--green);">localhost:11434/api/generate</span></div>
+        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">None — no API key required</span></div>
+        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · prompt · stream:false · options{temperature,num_predict}</span></div>
+        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.response }}</span> &nbsp;<span style="color:var(--dim); font-size:13px;">(flat string, not nested)</span></div>
+        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Install → ollama.ai · Pull model once: <span style="color:var(--green);">ollama pull mistral</span></div>
+      </div>
+    </div>
+
+  </div>
+
 </div><!-- /content -->
 
 <!-- ══════════════════════ FOOTER ════════════════════════ -->
