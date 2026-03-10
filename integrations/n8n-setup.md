@@ -140,6 +140,195 @@ DB_POSTGRESDB_PASSWORD=your_db_password
 
 ---
 
+## Switching AI Providers
+
+The workflow uses an **HTTP Request node (Node 4)** to call the AI provider directly. This makes it fully provider-agnostic — swap the URL, headers, and body to use any supported model. No n8n AI node required.
+
+In n8n, open **Node 4 → HTTP Request** and update the fields below for your chosen provider.
+
+---
+
+### 1. Anthropic Claude *(current default)*
+
+**API key:** [console.anthropic.com](https://console.anthropic.com) → API Keys → Create Key
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| URL | `https://api.anthropic.com/v1/messages` |
+| Header: `x-api-key` | `YOUR_ANTHROPIC_API_KEY` |
+| Header: `anthropic-version` | `2023-06-01` |
+| Header: `content-type` | `application/json` |
+
+**Body (JSON):**
+```json
+{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 2000,
+  "messages": [
+    {
+      "role": "user",
+      "content": "{{ $json.prompt }}"
+    }
+  ]
+}
+```
+
+**Parse response:** `{{ $json.content[0].text }}`
+
+**Estimated cost per assessment:** ~$0.01–0.03 (≈3,000 input + 800 output tokens at Sonnet pricing)
+
+---
+
+### 2. OpenAI GPT-4o
+
+**API key:** [platform.openai.com](https://platform.openai.com) → API Keys → Create new secret key
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| URL | `https://api.openai.com/v1/chat/completions` |
+| Header: `Authorization` | `Bearer YOUR_OPENAI_API_KEY` |
+| Header: `content-type` | `application/json` |
+
+**Body (JSON):**
+```json
+{
+  "model": "gpt-4o",
+  "max_tokens": 2000,
+  "temperature": 0.1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "{{ $json.prompt }}"
+    }
+  ]
+}
+```
+
+**Parse response:** `{{ $json.choices[0].message.content }}`
+
+**Estimated cost per assessment:** ~$0.05–0.10 (≈3,000 input + 800 output tokens at GPT-4o pricing)
+
+---
+
+### 3. Google Gemini
+
+**API key:** [aistudio.google.com](https://aistudio.google.com) → Get API key → Create API key
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| URL | `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=YOUR_GEMINI_API_KEY` |
+| Header: `content-type` | `application/json` |
+
+> Note: The API key is passed as a query parameter in the URL, not as a header.
+
+**Body (JSON):**
+```json
+{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "{{ $json.prompt }}"
+        }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "temperature": 0.1,
+    "maxOutputTokens": 2000
+  }
+}
+```
+
+**Parse response:** `{{ $json.candidates[0].content.parts[0].text }}`
+
+**Estimated cost per assessment:** ~$0.00–0.01 (Gemini 2.0 Flash is very low cost; free tier available)
+
+---
+
+### 4. Mistral
+
+**API key:** [console.mistral.ai](https://console.mistral.ai) → API Keys → Create new key
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| URL | `https://api.mistral.ai/v1/chat/completions` |
+| Header: `Authorization` | `Bearer YOUR_MISTRAL_API_KEY` |
+| Header: `content-type` | `application/json` |
+
+**Body (JSON):**
+```json
+{
+  "model": "mistral-large-latest",
+  "max_tokens": 2000,
+  "temperature": 0.1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "{{ $json.prompt }}"
+    }
+  ]
+}
+```
+
+**Parse response:** `{{ $json.choices[0].message.content }}`
+
+**Estimated cost per assessment:** ~$0.02–0.05 (Mistral Large pricing; Mistral Small available at ~10× lower cost)
+
+---
+
+### 5. Ollama (Local / Completely Free)
+
+No API key or account required. Runs entirely on your machine.
+
+**Prerequisites:**
+```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull a model (run once)
+ollama pull mistral        # ~4GB, good quality
+ollama pull llama3.1       # ~5GB, best open-source option
+ollama pull phi3           # ~2GB, fast, lower quality
+
+# Start the server (if not already running)
+ollama serve
+```
+
+| Field | Value |
+|-------|-------|
+| Method | `POST` |
+| URL | `http://localhost:11434/api/generate` |
+| Header: `content-type` | `application/json` |
+| Authentication | None |
+
+**Body (JSON):**
+```json
+{
+  "model": "mistral",
+  "prompt": "{{ $json.prompt }}",
+  "stream": false,
+  "options": {
+    "temperature": 0.1,
+    "num_predict": 2000
+  }
+}
+```
+
+**Parse response:** `{{ $json.response }}`
+
+> Note: Ollama uses a different response format from the cloud providers — `response` (string) instead of a nested `choices` or `content` array.
+
+**Estimated cost per assessment:** $0.00 — fully local, no API calls, no usage limits
+
+> **Quality note:** Local models produce usable but less precise analysis than frontier models. Recommended for development, testing, and cost-sensitive environments. For production compliance use, prefer Claude or GPT-4o.
+
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
