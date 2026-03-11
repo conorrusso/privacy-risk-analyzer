@@ -28,36 +28,50 @@ n8n start
 # Access at http://localhost:5678
 ```
 
-### Option C: Self-Hosted with Docker
+> Note: If using npm, you will need to run Gotenberg separately. See the Gotenberg section below.
+
+### Option C: Docker Compose (Recommended for local self-hosted)
+
+This is the approach used to build and test this workflow. It runs n8n and Gotenberg together with a single command:
 
 ```bash
-docker run -it --rm \
-  --name n8n \
-  -p 5678:5678 \
-  -v ~/.n8n:/home/node/.n8n \
-  docker.n8nio/n8n
+git clone https://github.com/conorrusso/privacy-risk-analyzer.git
+cd privacy-risk-analyzer
+docker compose up -d
 ```
 
-### Option D: Docker Compose (Production)
+Both services will start automatically:
+- n8n at `http://localhost:5678`
+- Gotenberg at `http://localhost:3000`
 
-```yaml
-version: '3.8'
-services:
-  n8n:
-    image: docker.n8nio/n8n
-    restart: always
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=your_secure_password
-      - WEBHOOK_URL=https://your-domain.com/
-    volumes:
-      - n8n_data:/home/node/.n8n
-volumes:
-  n8n_data:
+The `docker-compose.yml` in the repo root is pre-configured with the correct network settings so n8n can reach Gotenberg by service name (`http://gotenberg:3000`).
+
+---
+
+## Setting Up Gotenberg
+
+Gotenberg is an open source Docker-powered PDF conversion engine. The Privacy Lens uses it to convert the styled HTML report into a PDF and save it to Google Drive.
+
+### Why Gotenberg?
+- No external API account required
+- Runs entirely locally inside Docker
+- Handles complex CSS, web fonts, and dark themes accurately
+
+### Running Gotenberg standalone (if not using Docker Compose)
+
+```bash
+docker run -d \
+  --name gotenberg \
+  -p 3000:3000 \
+  gotenberg/gotenberg:8
 ```
+
+If running standalone, update the **Convert to PDF** node URL in the workflow from `http://gotenberg:3000` to `http://localhost:3000`.
+
+### Security
+- Gotenberg has **no authentication** by default
+- **Never expose port 3000 publicly** — bind to localhost only
+- The Docker Compose config in this repo is for local development only
 
 ---
 
@@ -337,3 +351,7 @@ ollama serve
 | AI node returns invalid JSON | Increase `max_tokens`, lower `temperature` to 0.1 |
 | Webhook not triggering | Check `WEBHOOK_URL` env var matches your public domain |
 | Ollama connection refused | Ensure Ollama is running: `ollama serve` |
+| PDF node returns connection error | Confirm Gotenberg is running: `docker ps` — should show `gotenberg` container. Check URL is `http://gotenberg:3000` inside Docker Compose or `http://localhost:3000` if standalone |
+| PDF node returns empty binary | Confirm the Generate HTML Report node outputs `binary.htmlFile` — check the node's output in n8n execution view |
+| Google Drive folder not found | Folder name in Drive must match search query exactly — check for trailing spaces or casing |
+| `docker compose` not found | Try `docker-compose` (with hyphen) or upgrade Docker Desktop |
