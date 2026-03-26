@@ -826,7 +826,7 @@
     <div class="pipe-stage">
       <span class="pipe-icon">📥</span>
       <span class="pipe-name">INGEST</span>
-      <span class="pipe-desc">Privacy policy URL, DPA PDF, SOC 2 report, intake form responses</span>
+      <span class="pipe-desc">Vendor folders in Google Drive — batch processed automatically. 3-tier URL discovery: common paths → robots.txt → homepage scrape. Browserless fetches JS-rendered policy pages.</span>
     </div>
     <div class="pipe-arrow">▶</div>
     <div class="pipe-stage">
@@ -1038,6 +1038,11 @@
       <span class="stack-role">Legal + vendor emails</span>
     </div>
     <div class="stack-cell">
+      <span class="stack-icon">🌐</span>
+      <span class="stack-name">BROWSERLESS</span>
+      <span class="stack-role">JS-rendered policy fetching</span>
+    </div>
+    <div class="stack-cell">
       <span class="stack-icon">🖨️</span>
       <span class="stack-name">GOTENBERG</span>
       <span class="stack-role">HTML → PDF engine</span>
@@ -1064,7 +1069,7 @@
       </div>
       <div class="phase-body">
         <div class="phase-title">PRIVACY POLICY ANALYZER</div>
-        <div class="phase-meta"><span class="dur status-complete">✅ COMPLETE</span> · <span class="deliv">Deliverable: Working analysis workflow + PT-1 prompt</span></div>
+        <div class="phase-meta"><span class="dur status-complete">✅ COMPLETE</span> · <span class="deliv">Deliverable: Working single-vendor analysis workflow + batch processing across all vendor folders</span></div>
         <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:100%"></div></div>
       </div>
     </div>
@@ -1075,8 +1080,8 @@
       </div>
       <div class="phase-body">
         <div class="phase-title">DPA GAP CHECKER + CONTRACT BRIEF</div>
-        <div class="phase-meta"><span class="dur status-next">▶ UP NEXT</span> · <span class="deliv">Deliverable: DPA analysis + legal-ready negotiation brief</span></div>
-        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
+        <div class="phase-meta"><span class="dur status-complete">✅ COMPLETE</span> · <span class="deliv">Deliverable: Batch loop over all Google Drive vendor folders — auto-skip assessed vendors, 3-tier URL discovery, full end-to-end pipeline working</span></div>
+        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:100%"></div></div>
       </div>
     </div>
 
@@ -1086,7 +1091,7 @@
       </div>
       <div class="phase-body">
         <div class="phase-title">AI VENDOR DETECTION + ADDENDUM</div>
-        <div class="phase-meta"><span class="dur status-planned">◇ PLANNED</span> · <span class="deliv">Deliverable: AI/ML detection + DPA addendum questions</span></div>
+        <div class="phase-meta"><span class="dur status-next">▶ UP NEXT</span> · <span class="deliv">Deliverable: AI/ML detection + DPA addendum questions</span></div>
         <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
       </div>
     </div>
@@ -1118,22 +1123,22 @@
   <!-- LIVE ASSESSMENT: SAMPLE -->
   <div class="section-header">
     <div class="section-num">06</div>
-    <div class="section-title">LIVE ASSESSMENT: ACMECORP INC.</div>
+    <div class="section-title">LIVE ASSESSMENT: DEMOVENDOR AI INC.</div>
     <div class="section-line"></div>
   </div>
 
-  <div style="background:var(--panel); border:3px solid var(--red); box-shadow:0 0 0 3px var(--black),0 0 0 6px var(--red),0 0 24px rgba(255,56,96,0.12); padding:28px; margin-bottom:28px; position:relative; overflow:hidden;">
+  <div style="background:var(--panel); border:3px solid var(--green); box-shadow:0 0 0 3px var(--black),0 0 0 6px var(--green),0 0 24px rgba(0,255,157,0.12); padding:28px; margin-bottom:28px; position:relative; overflow:hidden;">
     <div style="position:absolute;top:12px;right:16px;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);letter-spacing:1px;">// WORKFLOW OUTPUT · privacy-policy-analyzer.json</div>
 
     <!-- header row -->
     <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
       <div>
         <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;">VENDOR</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:13px;color:var(--white);letter-spacing:1px;">AcmeCorp Inc.</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:13px;color:var(--white);letter-spacing:1px;">DemoVendor AI Inc.</div>
       </div>
       <div style="margin-left:auto;text-align:right;">
         <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;">RISK TIER</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:16px;color:var(--red);text-shadow:2px 2px 0 #7a0020,0 0 16px var(--red);letter-spacing:2px;">⬛ HIGH</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:16px;color:var(--green);text-shadow:2px 2px 0 #003d26,0 0 16px var(--green);letter-spacing:2px;">🟢 LOW</div>
       </div>
     </div>
 
@@ -1141,7 +1146,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:var(--border);margin-bottom:20px;">
       <div style="background:var(--navy);padding:16px 14px;text-align:center;">
         <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">WEIGHTED AVG</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:22px;color:var(--red);text-shadow:0 0 12px var(--red);">1.8<span style="font-size:12px;color:var(--dim)"> / 5</span></div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:22px;color:var(--green);text-shadow:0 0 12px var(--green);">3.6<span style="font-size:12px;color:var(--dim)"> / 5</span></div>
       </div>
       <div style="background:var(--navy);padding:16px 14px;text-align:center;">
         <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">AI VENDOR</div>
@@ -1155,13 +1160,17 @@
 
     <!-- triggered actions -->
     <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:10px;">TRIGGERED ACTIONS</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--red);color:var(--red);background:rgba(255,56,96,0.08);">🎫 JIRA · HIGH</span>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--green);color:var(--green);background:rgba(0,255,157,0.08);">🎫 JIRA · LOW</span>
       <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--accent);color:var(--accent);background:rgba(123,47,255,0.08);">🤖 AI-VENDOR TAG</span>
       <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--yellow);color:var(--yellow);background:rgba(255,230,0,0.08);">💬 #AI-GOVERNANCE</span>
       <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--pixel);color:var(--pixel);background:rgba(0,200,255,0.08);">📁 DRIVE LOGGED</span>
       <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--red);color:var(--red);background:rgba(255,56,96,0.08);">📧 LEGAL BRIEFED</span>
     </div>
+
+    <!-- top finding -->
+    <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:10px;">TOP FINDING</div>
+    <div style="background:var(--navy);border-left:3px solid var(--yellow);padding:12px 16px;font-size:16px;color:var(--yellow);">⚠ Missing breach notification procedures and customer notification timelines</div>
   </div>
 
   <!-- GET STARTED -->
@@ -1179,7 +1188,7 @@
       <div class="code-block">git clone github.com/conorrusso/privacy-risk-analyzer<span class="cursor"></span></div>
 
       <p style="font-size:17px; color:var(--dim); margin-bottom:8px; margin-top:16px; letter-spacing:1px;">2. Import workflow into n8n</p>
-      <div class="code-block">Import › workflows/ai-vendor-assessment.json<span class="cursor"></span></div>
+      <div class="code-block">Import › workflows/privacy-policy-analyzer-batch.json<span class="cursor"></span></div>
 
       <p style="font-size:17px; color:var(--dim); margin-bottom:8px; margin-top:16px; letter-spacing:1px;">3. Add credentials + activate</p>
       <div class="code-block">ANTHROPIC_API_KEY + GOOGLE_DRIVE_CREDENTIALS<span class="cursor"></span></div>
