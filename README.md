@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Built for n8n](https://img.shields.io/badge/Built%20for-n8n-orange)](https://n8n.io)
 [![PDF Engine](https://img.shields.io/badge/PDF%20Engine-Gotenberg-blueviolet)](https://gotenberg.dev)
+[![Policy Fetching](https://img.shields.io/badge/Fetching-Browserless-blue)](https://browserless.io)
 
 ---
 
@@ -17,21 +18,50 @@ Each assessment produces a structured JSON risk report **and** a styled PDF repo
 **Workflows included:**
 | File | Purpose |
 |------|---------|
-| `privacy-policy-analyzer.json` | Full privacy policy intake, scoring, and PDF report generation |
+| `privacy-policy-analyzer.json` | Full batch privacy policy intake, scoring, and PDF report generation |
 | `dpa-gap-checker.json` | DPA clause coverage vs. GDPR Art. 28 checklist |
 | `ai-vendor-assessment.json` | Specialized scoring for AI/ML vendors (EU AI Act) |
 
 ---
 
+## Architecture
+
+The main workflow (`privacy-policy-analyzer.json`) runs as a **full batch loop** — it processes every vendor folder in your Google Drive `Privacy Reviews/` root and skips any vendor assessed within the last year.
+
+### Policy Fetching — Browserless
+
+Privacy policies are fetched via [Browserless](https://github.com/browserless/browserless) (a self-hosted headless Chromium service), not a simple HTTP request. This gives:
+
+- **Stealth mode** — bypasses bot-detection and JS-rendered paywalls common on privacy policy pages
+- **Full page rendering** — captures content that only appears after JavaScript runs
+- **No external dependency** — runs entirely inside Docker alongside n8n and Gotenberg
+
+### 3-Tier URL Discovery
+
+The workflow automatically discovers the privacy policy URL for each vendor using a 3-tier chain, so you don't need to supply URLs manually:
+
+| Tier | Method | Detail |
+|------|--------|--------|
+| **Tier 1** | Common paths | Tries `/privacy`, `/privacy-policy`, `/legal/privacy`, etc. against the vendor domain |
+| **Tier 2** | `robots.txt` | Parses `robots.txt` for a `Sitemap:` or privacy-related path reference |
+| **Tier 3** | Homepage scrape | Renders the homepage via Browserless and extracts the first `<a>` tag matching "privacy" |
+
+The **🔗 Prepare Fetch Context** node normalizes the vendor name, domain, and discovered URL into a consistent shape before Browserless fetches the policy — regardless of which tier found it.
+
+### PDF Report Generation — Gotenberg
+
+After AI scoring, the workflow generates a styled retro-terminal HTML report and converts it to PDF via [Gotenberg](https://gotenberg.dev), which runs as a sidecar container in the same Docker Compose network.
+
+### AI Scoring
+
+Policies are scored by `claude-sonnet-4-20250514` across 8 risk dimensions (D1–D8). The prompt and scoring rubric are in [`prompts/PT-1-privacy-policy-analysis.md`](prompts/PT-1-privacy-policy-analysis.md) and [`frameworks/privacy-risk-scoring-rubric.md`](frameworks/privacy-risk-scoring-rubric.md).
+
+---
+
 ## Prerequisites
 
-- [Docker](https://www.docker.com) and [Docker Compose](https://docs.docker.com/compose/) — used to run both n8n and Gotenberg
-- An AI provider API key — one of:
-  - Anthropic (Claude)
-  - OpenAI (GPT-4o)
-  - Google (Gemini)
-  - Mistral AI
-  - Ollama (local, no key required)
+- [Docker](https://www.docker.com) and [Docker Compose](https://docs.docker.com/compose/)
+- An Anthropic API key (Claude) — or swap to GPT-4o, Gemini, Mistral, or Ollama
 - Optional: Google Drive, Jira, and/or Slack credentials for output routing
 
 ---
@@ -45,85 +75,62 @@ git clone https://github.com/conorrusso/privacy-risk-analyzer.git
 cd privacy-risk-analyzer
 ```
 
-### 2. Start n8n + Gotenberg
-
-This project uses Docker Compose to run both services together. The `docker-compose.yml` in the repo root is exactly what was used to build and test this workflow:
-
-```yaml
-version: '3.8'
-
-services:
-  n8n:
-    image: n8nio/n8n
-    container_name: n8n
-    ports:
-      - "5678:5678"
-    volumes:
-      - ~/.n8n:/home/node/.n8n
-    environment:
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-    restart: unless-stopped
-
-  gotenberg:
-    image: gotenberg/gotenberg:8
-    container_name: gotenberg
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-```
+### 2. Start n8n + Gotenberg + Browserless
 
 ```bash
 docker compose up -d
 ```
 
-This starts:
+This starts three services:
 - **n8n** at `http://localhost:5678` — workflow orchestration
-- **Gotenberg** at `http://localhost:3000` — HTML to PDF conversion engine
+- **Gotenberg** at `http://localhost:3000` — HTML to PDF conversion
+- **Browserless** at `http://localhost:3001` — headless Chromium for policy fetching
 
-To stop both services:
+The `docker-compose.yml` in the repo root is pre-configured with the correct network settings. All three containers resolve each other by service name (`http://gotenberg:3000`, `http://browserless:3000`).
+
+To stop all services:
 ```bash
 docker compose down
 ```
 
-> **Container networking note:** The workflow's Convert to PDF node calls `http://gotenberg:3000` — this works because both containers are on the same Docker Compose network and resolve each other by service name. If you run Gotenberg separately outside of Docker Compose, change this URL in the workflow node to `http://localhost:3000` instead.
-
-### 3. Import a Workflow
+### 3. Import the Workflow
 
 1. Open n8n at `http://localhost:5678`
 2. Click **Workflows → Import from File**
-3. Select a JSON file from the `/workflows/` folder
+3. Select `workflows/privacy-policy-analyzer.json`
 4. Configure your credentials (see [integrations/](integrations/))
+
+> **IF node import bug:** n8n has a known issue where IF nodes imported from JSON can silently route all traffic through one branch. If your workflow skips the error path or never reaches a downstream node, **delete the IF node and recreate it fresh** by dragging a new IF node from the panel, then rewire it. This is a one-time fix after import.
 
 ### 4. Set Up Google Drive
 
-Before running an assessment, create a folder structure in Google Drive:
+Create this folder structure in Google Drive before running:
 
 ```
 Privacy Reviews/
 └── [Vendor Name]/     ← one folder per vendor
 ```
 
-The workflow will find the vendor folder by name and save both the JSON and PDF report there automatically. See [integrations/google-drive-setup.md](integrations/google-drive-setup.md) for full setup instructions.
+The workflow discovers all vendor subfolders automatically on each run and saves both the JSON and PDF report to the matching folder. See [integrations/google-drive-setup.md](integrations/google-drive-setup.md) for full setup instructions.
 
-### 5. Set Your AI Provider
+### 5. Configure Your Anthropic API Key
 
-In each workflow, locate the **AI Provider** node and configure:
-- **URL**: your provider's API endpoint
-- **API Key**: stored as an n8n credential
-- **Model**: e.g. `claude-sonnet-4-6`, `gpt-4o`, `gemini-1.5-pro`
+In the workflow, open the **🧠 AI Provider — Score Privacy Policy** node and set your API key as an n8n credential (never hardcode it in the node directly). The default model is `claude-sonnet-4-20250514`.
 
-See the [AI Provider switching guide](#ai-provider-switching) below for endpoint details.
+To use a different AI provider, see the [AI Provider switching guide](#ai-provider-switching) below.
 
-### 6. Run Your First Analysis
+### 6. Run Your First Batch
 
-Trigger the `privacy-policy-analyzer` workflow manually in n8n. The workflow will:
+Trigger the workflow manually in n8n. For each vendor folder, the workflow will:
 
-1. Search Google Drive for the vendor's folder
-2. Fetch and parse the privacy policy URL
-3. Score it across 8 dimensions using your AI provider
-4. Generate a styled PDF report via Gotenberg
-5. Save both the PDF and JSON to the vendor folder in Drive
+1. Check if a recent assessment already exists (skips if assessed within 1 year)
+2. Auto-discover the privacy policy URL via 3-tier chain
+3. Fetch and render the policy page via Browserless (stealth mode)
+4. Extract and clean the policy text
+5. Score it across 8 dimensions using your AI provider
+6. Generate a styled PDF report via Gotenberg
+7. Save both the PDF and JSON to the vendor's folder in Drive
+8. Log any failed URL discoveries to a `needs-manual-review` file
 
 ---
 
@@ -158,14 +165,17 @@ Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall *
 
 ## Security Notes
 
-### Gotenberg
-- Gotenberg has **no authentication** by default. It should only be accessible on `localhost`.
-- **Never expose port 3000 publicly.** If deploying to a server, bind Gotenberg to `127.0.0.1` only or place it behind a firewall.
-- The `docker-compose.yml` in this repo is configured for local use. Review your network configuration before deploying to any shared or cloud environment.
-
 ### API Keys
 - Store all API keys as **n8n credentials**, never hardcoded in workflow nodes.
-- Rotate your AI provider key if it was ever pasted directly into a workflow node during setup.
+- If a key was ever pasted directly into a workflow node during testing, rotate it immediately.
+
+### Browserless
+- Browserless is protected by a token (`TOKEN=privacy-lens` in `docker-compose.yml`). Change this for any shared or production environment.
+- **Never expose port 3001 publicly.** Bind to localhost or place behind a firewall.
+
+### Gotenberg
+- Gotenberg has **no authentication** by default.
+- **Never expose port 3000 publicly.** The `docker-compose.yml` in this repo is for local use only.
 
 ---
 
@@ -173,9 +183,9 @@ Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall *
 
 ```
 privacy-risk-analyzer/
-├── docker-compose.yml          ← starts n8n + Gotenberg together
+├── docker-compose.yml          ← starts n8n + Gotenberg + Browserless
 ├── workflows/
-│   ├── privacy-policy-analyzer.json
+│   ├── privacy-policy-analyzer.json   ← batch workflow (current)
 │   ├── dpa-gap-checker.json
 │   └── ai-vendor-assessment.json
 ├── prompts/
@@ -207,9 +217,11 @@ These are real issues encountered during development of this workflow:
 |-------|-------|-----|
 | PDF node returns connection error | Gotenberg not running or wrong URL | Run `docker compose up -d` and confirm Gotenberg is at `localhost:3000`. Inside Docker Compose the URL should be `http://gotenberg:3000` |
 | PDF node returns empty file | HTML binary not passed correctly | Confirm the Generate HTML Report node returns a `binary.htmlFile` field, not just JSON |
+| Policy fetch returns 403 or empty | Site blocking headless browsers | Browserless stealth mode handles most cases; for stubborn sites, check the Browserless token is set correctly |
 | AI node returns non-JSON response | Model wrapped output in markdown code fences | The Parse Assessment JSON node strips ` ```json ` fences before parsing — ensure this node is present |
-| Google Drive folder not found | Vendor folder name doesn't match exactly | Folder name in Drive must match the search query exactly — check for trailing spaces or casing differences |
-| Workflow stops at IF node | Vendor folder genuinely missing | Create the folder manually in `Privacy Reviews/[Vendor Name]/` before running |
+| Workflow stops at IF node | IF node imported with wrong routing | Delete the IF node and recreate it fresh from the node panel, then rewire. This is a one-time fix after import. |
+| Vendor folder not found | Vendor folder name mismatch | Folder name in Drive must match exactly — check for trailing spaces or casing differences |
+| All vendors skipped | Assessments exist and are < 1 year old | Expected behaviour — delete old assessment files or set `skipVendor = false` temporarily |
 | `docker compose` command not found | Using older Docker with separate compose plugin | Try `docker-compose up -d` (with hyphen) or upgrade Docker Desktop |
 
 ---

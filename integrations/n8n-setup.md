@@ -32,7 +32,7 @@ n8n start
 
 ### Option C: Docker Compose (Recommended for local self-hosted)
 
-This is the approach used to build and test this workflow. It runs n8n and Gotenberg together with a single command:
+This is the approach used to build and test this workflow. It runs n8n, Gotenberg, and Browserless together with a single command:
 
 ```bash
 git clone https://github.com/conorrusso/privacy-risk-analyzer.git
@@ -40,11 +40,12 @@ cd privacy-risk-analyzer
 docker compose up -d
 ```
 
-Both services will start automatically:
+All three services will start automatically:
 - n8n at `http://localhost:5678`
-- Gotenberg at `http://localhost:3000`
+- Gotenberg at `http://localhost:3000` (HTML → PDF conversion)
+- Browserless at `http://localhost:3001` (headless Chromium for policy fetching)
 
-The `docker-compose.yml` in the repo root is pre-configured with the correct network settings so n8n can reach Gotenberg by service name (`http://gotenberg:3000`).
+The `docker-compose.yml` in the repo root is pre-configured with the correct network settings so all containers can reach each other by service name (`http://gotenberg:3000`, `http://browserless:3000`).
 
 ---
 
@@ -72,6 +73,34 @@ If running standalone, update the **Convert to PDF** node URL in the workflow fr
 - Gotenberg has **no authentication** by default
 - **Never expose port 3000 publicly** — bind to localhost only
 - The Docker Compose config in this repo is for local development only
+
+---
+
+## Setting Up Browserless
+
+Browserless is a self-hosted headless Chromium service. The Privacy Lens uses it for policy fetching instead of plain HTTP requests — this handles JavaScript-rendered pages and bypasses common bot-detection mechanisms.
+
+### Why Browserless?
+- Renders JavaScript-heavy pages that a plain `fetch` would miss
+- Stealth mode bypasses bot-detection used on many privacy policy pages
+- Runs entirely locally inside Docker — no external API calls
+
+### Running Browserless standalone (if not using Docker Compose)
+
+```bash
+docker run -d \
+  --name browserless \
+  -p 3001:3000 \
+  -e TOKEN=privacy-lens \
+  ghcr.io/browserless/chromium
+```
+
+If running standalone, update the **📥 Fetch Privacy Policy** node URL in the workflow from `http://browserless:3000` to `http://localhost:3001`.
+
+### Security
+- Browserless is token-protected — the default token is `privacy-lens` (set in `docker-compose.yml`)
+- **Change the token** for any shared or production environment
+- **Never expose port 3001 publicly**
 
 ---
 
@@ -353,5 +382,7 @@ ollama serve
 | Ollama connection refused | Ensure Ollama is running: `ollama serve` |
 | PDF node returns connection error | Confirm Gotenberg is running: `docker ps` — should show `gotenberg` container. Check URL is `http://gotenberg:3000` inside Docker Compose or `http://localhost:3000` if standalone |
 | PDF node returns empty binary | Confirm the Generate HTML Report node outputs `binary.htmlFile` — check the node's output in n8n execution view |
+| Policy fetch returns 403 or empty | Browserless not running or token mismatch — confirm `browserless` container is up and `TOKEN=privacy-lens` is set |
+| IF node routes to wrong branch | Imported IF nodes can silently misroute — delete the node and recreate it fresh from the node panel, then rewire |
 | Google Drive folder not found | Folder name in Drive must match search query exactly — check for trailing spaces or casing |
 | `docker compose` not found | Try `docker-compose` (with hyphen) or upgrade Docker Desktop |

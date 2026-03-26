@@ -1,49 +1,138 @@
 {
-  "name": "privacy-policy-analyzer-v1-clean",
+  "name": "privacy-policy-analyzer-batch",
   "nodes": [
     {
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        0,
-        192
+        -4704,
+        384
       ],
-      "id": "a48c0257-7fc6-4ee7-9dda-45ae559e0b37",
-      "name": "🔗 Trigger — Manual"
+      "id": "96c77ccd-d611-41fe-8d10-f8b0190184f2",
+      "name": "🚀 Trigger — Run Batch Assessment"
     },
     {
       "parameters": {
-        "url": "https://example.com/privacy-policy",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          }
-        }
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "mimeType = 'application/vnd.google-apps.folder' and '1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_' in parents",
+        "filter": {},
+        "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
       "position": [
-        672,
-        96
+        -4480,
+        384
       ],
-      "id": "8ef5b1f0-ddaa-4bd4-aef1-08240d45848c",
-      "name": "📥 Fetch Privacy Policy"
+      "id": "80bb1d79-bfa6-46ab-a220-d367b555ed29",
+      "name": "📂 List All Vendor Folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "goGjaQCO0aHJ8wHa",
+          "name": "Google Drive account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const html = $input.first().json.data;\n\n// Strip all HTML tags\nlet text = html.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '');\ntext = text.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '');\ntext = text.replace(/<[^>]+>/g, ' ');\n\n// Clean up whitespace\ntext = text.replace(/\\s+/g, ' ').trim();\n\n// Trim to ~12,000 chars to fit in AI context window\ntext = text.substring(0, 12000);\n\nreturn [{ json: { cleanText: text } }];"
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "='{{ $json.id }}' in parents",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -4256,
+        384
+      ],
+      "id": "d8d312e3-4a9e-4db1-8824-65fd6ddd2db9",
+      "name": "🔍 Check If Assessment Exists",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "goGjaQCO0aHJ8wHa",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst oneYearAgo = $now.minus({years: 1}).toFormat('yyyy-MM-dd');\n\nconst vendorMap = {};\n\nfor (const item of items) {\n  const name = item.json.name || '';\n  if (!name.includes('privacy-assessment')) continue;\n  \n  const vendorMatch = name.match(/^(.+?)-privacy-assessment-(\\d{4}-\\d{2}-\\d{2})/i);\n  if (!vendorMatch) continue;\n  \n  const vendor = vendorMatch[1].toLowerCase();\n  const date = vendorMatch[2];\n  \n  if (!vendorMap[vendor] || date > vendorMap[vendor]) {\n    vendorMap[vendor] = date;\n  }\n}\n\nconst vendorFolders = $('📂 List All Vendor Folders').all();\n\nreturn vendorFolders.map(folder => {\n  const folderName = folder.json.name.toLowerCase();\n  const mostRecent = vendorMap[folderName];\n  const skipVendor = mostRecent ? mostRecent > oneYearAgo : false;\n  \n  return {\n    json: {\n      folderId: folder.json.id,\n      vendorName: folder.json.name,\n      skipVendor,\n      mostRecentAssessment: mostRecent || null\n    }\n  };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        96
+        -4032,
+        384
       ],
-      "id": "b6e25d40-d74a-49a9-b2be-2418aa0cc7fa",
-      "name": "🧹 Strip HTML"
+      "id": "e9ddfada-a1a8-41ea-a63d-5a30563e4ba5",
+      "name": "🗓️ Check Assessment Age"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-no-assessment",
+              "leftValue": "={{ $json.skipVendor }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3808,
+        384
+      ],
+      "id": "b26a8e0b-35a3-4a06-a486-c1b2bf3db0ca",
+      "name": "✅ Skip If Already Assessed?"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log(`Skipping ${$json.vendorName} — assessment already exists`);\nreturn [{ json: { ...$json, skipped: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3584,
+        448
+      ],
+      "id": "15e250c8-41ae-4e3e-9336-7678247f0de5",
+      "name": "⏭️ Skip Vendor"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -3360,
+        384
+      ],
+      "id": "a0da590e-2e8e-4e2c-8778-02fa21d17618",
+      "name": "🔁 Loop Over Vendors"
     },
     {
       "parameters": {
@@ -68,98 +157,144 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 2000,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a privacy risk analyst. Analyze the following privacy policy and score it across 6 dimensions. Return ONLY valid JSON, no other text.\\n\\nSCORING RUBRIC (1-5):\\n1 = Missing or absent\\n2 = Vague or inadequate  \\n3 = Partial - present but incomplete\\n4 = Good - mostly complete\\n5 = Strong - comprehensive and specific\\n\\nDIMENSIONS TO SCORE:\\nD1 - Data Minimization: Are data categories specific? Are retention windows defined?\\nD2 - Sub-Processor Transparency: Is a named sub-processor list published? Is there a change notification mechanism?\\nD3 - Data Subject Rights: Are DSAR/deletion/portability mechanisms described with timelines?\\nD4 - Transfer Mechanisms: Are cross-border transfer mechanisms named (SCCs, BCRs, adequacy)?\\nD5 - Breach Notification: Is there a customer-specific notification SLA in hours/days?\\nD7 - Retention & Deletion: Are specific deletion timelines defined? What happens at contract termination?\\n\\nALSO DETECT:\\n- is_ai_vendor: true if the vendor uses AI/ML in their product or mentions model training\\n- ai_training_risk: true if customer data may be used to train models\\n\\nRETURN THIS EXACT JSON STRUCTURE:\\n{\\n  \\\"vendor\\\": \\\"[extract vendor name from document]\\\",\\n  \\\"assessment_date\\\": \\\"2026-03-10\\\",\\n  \\\"scores\\\": {\\n    \\\"D1_data_minimization\\\": {\\\"score\\\": 0, \\\"rationale\\\": \\\"\\\", \\\"red_flags\\\": []},\\n    \\\"D2_sub_processor\\\": {\\\"score\\\": 0, \\\"rationale\\\": \\\"\\\", \\\"red_flags\\\": []},\\n    \\\"D3_subject_rights\\\": {\\\"score\\\": 0, \\\"rationale\\\": \\\"\\\", \\\"red_flags\\\": []},\\n    \\\"D4_transfer_mechanisms\\\": {\\\"score\\\": 0, \\\"rationale\\\": \\\"\\\", \\\"red_flags\\\": []},\\n    \\\"D5_breach_notification\\\": {\\\"score\\\": 0, \\\"rationale\\\": \\\"\\\", \\\"red_flags\\\": []},\\n    \\\"D7_retention_deletion\\\": {\\\"score\\\": 0, \\\"rationale\\\": \\\"\\\", \\\"red_flags\\\": []}\\n  },\\n  \\\"weighted_average\\\": 0.0,\\n  \\\"risk_tier\\\": \\\"HIGH|MEDIUM|LOW\\\",\\n  \\\"is_ai_vendor\\\": false,\\n  \\\"ai_training_risk\\\": false,\\n  \\\"top_3_findings\\\": []\\n}\\n\\nPRIVACY POLICY TEXT:\\n{{ $json.cleanText }}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 100,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Return ONLY the primary domain for this company. No explanation, no punctuation, just the domain. Examples: Salesforce -> salesforce.com, Microsoft -> microsoft.com, Cyera -> cyera.com\\n\\nCompany: {{ $json.vendorName }}\"\n    }\n  ]\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1120,
-        96
+        -2912,
+        16
       ],
-      "id": "519c6e43-11cc-46b8-b180-bf0aeb0e0724",
-      "name": "🧠 AI Provider — Score Privacy Policy"
+      "id": "bc1ae148-9d71-4c06-b1e6-cab7708d9c7d",
+      "name": "🧠 AI — Resolve Vendor Domain"
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst rawText = response.content[0].text;\nconst cleaned = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\nconst assessment = JSON.parse(cleaned);\nreturn [{ json: assessment }];"
+        "jsCode": "const response = $input.first().json;\nconst domain = response.content[0].text.trim().toLowerCase()\n  .replace(/^https?:\\/\\//, '')\n  .replace(/\\/$/, '');\n\nconst vendorName = $('🔁 Loop Over Vendors').first().json.vendorName;\nconst folderId = $('🔁 Loop Over Vendors').first().json.folderId;\n\nconst candidates = [\n  `https://www.${domain}/legal/privacy-policy`,\n  `https://www.${domain}/legal/privacy`,\n  `https://${domain}/legal/privacy-policy`,\n  `https://${domain}/legal/privacy`,\n  `https://www.${domain}/privacy-policy`,\n  `https://www.${domain}/privacy`,\n  `https://${domain}/privacy-policy`,\n  `https://${domain}/privacy`,\n  `https://www.${domain}/privacy-notice`,\n  `https://www.${domain}/policies/privacy`,\n  `https://www.${domain}/about/privacy`,\n  `https://www.${domain}/trust/privacy`\n];\n\nreturn [{ json: { domain, vendorName, folderId, candidates, currentTier: 1, currentIndex: 0 } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
+        -2688,
+        16
+      ],
+      "id": "80b4f462-5263-4d82-95e5-e718982d5e40",
+      "name": "🗂️ Build URL Candidates"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.candidates[$json.currentIndex] }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2464,
+        16
+      ],
+      "id": "f153bdb1-33da-4a05-9fbf-92b8828b3317",
+      "name": "🌐 Tier 1 — Try Common Paths",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first();\nconst prevData = $('🗂️ Build URL Candidates').first().json;\nconst responseData = result.json && result.json.data ? result.json.data : '';\nconst successUrl = prevData.candidates[prevData.currentIndex];\n\nconst isSubstantial = responseData.length > 5000;\nconst isBadPath = /(\\/platform|\\/product|\\/solution|\\/service|\\/feature|\\/blog|\\/about\\/(?!privacy)|\\/resources)/i.test(successUrl);\nconst is404 = /<title>.*404.*<\\/title>/i.test(responseData) || /error_404/.test(responseData);\n\nconst hasPrivacyContent = (\n  /privacy\\s+policy/i.test(responseData) &&\n  (/data\\s+subject|lawful\\s+basis|legitimate\\s+interest|data\\s+controller|data\\s+processor/i.test(responseData) ||\n   /gdpr|ccpa|personal\\s+data.*collect|we\\s+collect.*personal/i.test(responseData))\n);\n\nconst success = isSubstantial && !isBadPath && !is404 && hasPrivacyContent;\n\nif (success) {\n  return [{\n    json: {\n      ...prevData,\n      policyUrl: successUrl,\n      discoveryTier: 1,\n      discovered: true\n    }\n  }];\n}\n\nconst nextIndex = prevData.currentIndex + 1;\nif (nextIndex < prevData.candidates.length) {\n  return [{ json: { ...prevData, currentIndex: nextIndex, discovered: false } }];\n}\n\nreturn [{ json: { ...prevData, discovered: false, tier1Failed: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2240,
+        16
+      ],
+      "id": "8d2f0cf6-dbcf-4dfe-b606-94036dc3af90",
+      "name": "🔎 Check Tier 1 Result"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $json.domain }}/robots.txt",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 8000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1792,
         96
       ],
-      "id": "1372334f-feec-4cdf-ad82-3806ef095aa7",
-      "name": "📊 Parse Assessment JSON"
+      "id": "9e999e7d-0b9f-48ee-8ebd-d46d0194a531",
+      "name": "🤖 Tier 2 — Fetch robots.txt",
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "4e4d4ca7-9f96-4db1-b193-4c90a20abda3",
-              "name": "risk_summary",
-              "value": "={{$json.vendor}} | {{$json.risk_tier}} | Avg: {{$json.weighted_average}} | AI Vendor: {{$json.is_ai_vendor}}",
-              "type": "string"
+        "jsCode": "const robotsResult = $input.first();\nconst prevData = $('🔎 Check Tier 1 Result').first().json;\n\nlet foundUrl = null;\n\nif (robotsResult.json && robotsResult.json.data) {\n  const lines = robotsResult.json.data.split('\\n');\n  for (const line of lines) {\n    if (line.toLowerCase().startsWith('sitemap:')) {\n      const sitemapUrl = line.split(':').slice(1).join(':').trim();\n      return [{ json: { ...prevData, sitemapUrl, tier2Source: 'robots' } }];\n    }\n  }\n  \n  const privacyMatch = robotsResult.json.data.match(/https?:\\/\\/[^\\s]*privac[^\\s]*/i);\n  if (privacyMatch) {\n    foundUrl = privacyMatch[0];\n  }\n}\n\nif (foundUrl) {\n  return [{ json: { ...prevData, policyUrl: foundUrl, discoveryTier: 2, discovered: true } }];\n}\n\nreturn [{ json: { ...prevData, discovered: false, tier2Failed: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        96
+      ],
+      "id": "3bd543e1-784a-436f-b982-4dd835bb8655",
+      "name": "🔎 Parse robots.txt for Privacy URL"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $json.domain }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
             }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1792,
-        192
-      ],
-      "id": "83d6f75a-6305-446f-a4b1-6e3407407314",
-      "name": "📋 Format Risk Summary"
-    },
-    {
-      "parameters": {
-        "content": "THE PRIVACY LENS — Phase 1\nPrivacy Policy Analyzer\n\nFetches a vendor privacy policy URL,\nstrips HTML to clean text, sends to\nyour configured AI provider for\n8-dimension scoring, parses JSON\noutput, and formats the risk summary.\n\n⚙️ To switch AI providers:\nEdit the \"AI Provider\" node — swap\nURL, headers, and model field.\nSee: integrations/n8n-setup.md\n\nOutput: vendor, risk_tier,\nweighted_average, is_ai_vendor,\ntop_3_findings",
-        "height": 336,
-        "width": 368
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        160,
-        -272
-      ],
-      "id": "77934350-8586-4e66-83d8-ecff0bd7ca7c",
-      "name": "Sticky Note"
-    },
-    {
-      "parameters": {
-        "resource": "fileFolder",
-        "queryString": "VENDOR_NAME",
-        "filter": {
-          "folderId": {
-            "__rl": true,
-            "value": "1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_",
-            "mode": "list",
-            "cachedResultName": "Privacy Reviews",
-            "cachedResultUrl": "https://drive.google.com/drive/folders/1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_"
-          }
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleDrive",
-      "typeVersion": 3,
-      "position": [
-        224,
-        192
-      ],
-      "id": "4d29cf11-90eb-45d3-823d-e7500d0e5bb2",
-      "name": "Search files and folders",
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "goGjaQCO0aHJ8wHa",
-          "name": "Google Drive account"
+          },
+          "timeout": 10000
         }
-      }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1344,
+        96
+      ],
+      "id": "72a2e7f9-443c-4302-ad2b-bd826c16fc70",
+      "name": "🏠 Tier 3 — Scrape Homepage",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const homepageResult = $input.first();\nconst prevData = $('🔎 Parse robots.txt for Privacy URL').first().json;\n\nlet foundUrl = null;\n\nif (homepageResult.json && homepageResult.json.data) {\n  const html = homepageResult.json.data;\n  \n  const linkRegex = /href=[\"']([^\"']*privac[^\"']*)[\"']/gi;\n  let match;\n  while ((match = linkRegex.exec(html)) !== null) {\n    const href = match[1];\n    if (href.startsWith('http')) {\n      foundUrl = href;\n    } else if (href.startsWith('/')) {\n      foundUrl = `https://${prevData.domain}${href}`;\n    }\n    break;\n  }\n}\n\nif (foundUrl) {\n  return [{ json: { ...prevData, policyUrl: foundUrl, discoveryTier: 3, discovered: true } }];\n}\n\nreturn [{ \n  json: { \n    ...prevData, \n    discovered: false, \n    allTiersFailed: true,\n    manualReviewReason: `Could not auto-discover privacy policy URL for ${prevData.vendorName}.`\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        96
+      ],
+      "id": "730cef91-3e2c-411f-a6cd-9a0aaf5d570b",
+      "name": "🔎 Parse Homepage for Privacy Link"
     },
     {
       "parameters": {
@@ -172,13 +307,12 @@
           },
           "conditions": [
             {
-              "id": "bc3b9bc4-2b63-4f49-8ada-690a67dba9d7",
-              "leftValue": "={{$json.id}}",
-              "rightValue": "",
+              "id": "ebda5a2c-7a53-4c07-aa60-c1764e4f3937",
+              "leftValue": "={{ $json.policyUrl.length }}",
+              "rightValue": 0,
               "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
+                "type": "number",
+                "operation": "gt"
               }
             }
           ],
@@ -189,36 +323,135 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        448,
-        192
+        -896,
+        96
       ],
-      "id": "910c3aa1-20a9-4522-b58b-bc96274f5710",
-      "name": "If"
+      "id": "03f38947-a99e-4a39-8f8c-2c0017f37721",
+      "name": "URL Discovered?"
     },
     {
       "parameters": {
-        "errorMessage": "=Vendor folder not found in Privacy Reviews. Please create a folder named exactly \"{{$('📂 Find Vendor Folder').params.searchQuery}}\" in Google Drive before running this workflow."
+        "method": "POST",
+        "url": "=http://browserless:3000/content?token=privacy-lens&stealth=true",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.policyUrl }}"
+            },
+            {
+              "name": "waitForTimeout",
+              "value": "10000"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
       },
-      "type": "n8n-nodes-base.stopAndError",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
-        672,
-        288
+        -672,
+        -80
       ],
-      "id": "fee65137-371d-44f5-9489-ee5216eded88",
-      "name": "Stop and Error"
+      "id": "71355a3b-fe2a-4d0f-88f9-1af10582d422",
+      "name": "📥 Fetch Privacy Policy",
+      "retryOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// n8n Code Node — Generate 8-bit HTML Privacy Assessment Report\n// Place this in a Code node after \"Parse Assessment JSON\"\n// Node name: 🎮 Generate HTML Report\n\nconst data = $('📊 Parse Assessment JSON').first().json;\n\nconst riskColor = {\n  'HIGH': '#ff4444',\n  'MEDIUM': '#ffaa00', \n  'LOW': '#00ff88'\n};\n\nconst riskBg = {\n  'HIGH': '#2a0000',\n  'MEDIUM': '#2a1a00',\n  'LOW': '#002a1a'\n};\n\nconst scoreBar = (score) => {\n  const filled = score;\n  const empty = 5 - score;\n  return '█'.repeat(filled) + '░'.repeat(empty);\n};\n\nconst scoreColor = (score) => {\n  if (score <= 1) return '#ff4444';\n  if (score <= 2) return '#ff8800';\n  if (score <= 3) return '#ffdd00';\n  return '#00ff88';\n};\n\nconst dimensionLabels = {\n  D1_data_minimization: 'D1 · DATA MINIMIZATION',\n  D2_sub_processor: 'D2 · SUB-PROCESSORS',\n  D3_subject_rights: 'D3 · SUBJECT RIGHTS',\n  D4_transfer_mechanisms: 'D4 · TRANSFER MECHANISMS',\n  D5_breach_notification: 'D5 · BREACH NOTIFICATION',\n  D6_ai_ml_usage: 'D6 · AI/ML DATA USAGE ★',\n  D7_retention_deletion: 'D7 · RETENTION & DELETION',\n  D8_dpa_completeness: 'D8 · DPA COMPLETENESS ★'\n};\n\nconst scoresHTML = Object.entries(data.scores || {}).map(([key, val]) => {\n  const label = dimensionLabels[key] || key;\n  const score = val.score;\n  const rationale = val.rationale || '';\n  const redFlags = (val.red_flags || []).map(f => `<li>⚠ ${f}</li>`).join('');\n  \n  return `\n    <div class=\"dimension-card\" style=\"border-color: ${scoreColor(score)}\">\n      <div class=\"dim-header\">\n        <span class=\"dim-label\">${label}</span>\n        <span class=\"dim-score\" style=\"color: ${scoreColor(score)}\">${scoreBar(score)} ${score}/5</span>\n      </div>\n      <div class=\"dim-rationale\">${rationale}</div>\n      ${redFlags ? `<ul class=\"red-flags\">${redFlags}</ul>` : ''}\n    </div>\n  `;\n}).join('');\n\nconst top3HTML = (data.top_3_findings || []).map((f, i) => \n  `<div class=\"finding\">▶ ${f}</div>`\n).join('');\n\nconst html = `<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Privacy Assessment — ${data.vendor}</title>\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap');\n\n  :root {\n    --bg: #0a0a0f;\n    --panel: #12121a;\n    --border: #2a2a3a;\n    --text: #c8c8e8;\n    --dim: #6060a0;\n    --accent: #7700ff;\n    --risk: ${riskColor[data.risk_tier] || '#ffaa00'};\n    --risk-bg: ${riskBg[data.risk_tier] || '#2a1a00'};\n  }\n\n  * { box-sizing: border-box; margin: 0; padding: 0; }\n\n  body {\n    background: var(--bg);\n    color: var(--text);\n    font-family: 'Share Tech Mono', monospace;\n    font-size: 13px;\n    line-height: 1.6;\n    padding: 32px 24px;\n    max-width: 900px;\n    margin: 0 auto;\n  }\n\n  /* Scanline overlay */\n  body::before {\n    content: '';\n    position: fixed;\n    top: 0; left: 0; right: 0; bottom: 0;\n    background: repeating-linear-gradient(\n      0deg,\n      transparent,\n      transparent 2px,\n      rgba(0,0,0,0.15) 2px,\n      rgba(0,0,0,0.15) 4px\n    );\n    pointer-events: none;\n    z-index: 999;\n  }\n\n  .header {\n    text-align: center;\n    border: 3px solid var(--accent);\n    padding: 24px;\n    margin-bottom: 32px;\n    position: relative;\n    background: #0d0d18;\n    image-rendering: pixelated;\n  }\n\n  .header::before {\n    content: '◄ THE PRIVACY LENS ►';\n    display: block;\n    font-family: 'Press Start 2P', monospace;\n    font-size: 9px;\n    color: var(--accent);\n    margin-bottom: 16px;\n    letter-spacing: 2px;\n  }\n\n  .vendor-name {\n    font-family: 'Press Start 2P', monospace;\n    font-size: 18px;\n    color: #ffffff;\n    margin-bottom: 8px;\n    text-shadow: 0 0 20px var(--accent);\n  }\n\n  .assessment-date {\n    color: var(--dim);\n    font-size: 11px;\n  }\n\n  .risk-banner {\n    background: var(--risk-bg);\n    border: 3px solid var(--risk);\n    padding: 20px 24px;\n    margin-bottom: 24px;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    animation: pulse 2s infinite;\n  }\n\n  @keyframes pulse {\n    0%, 100% { box-shadow: 0 0 8px var(--risk); }\n    50% { box-shadow: 0 0 24px var(--risk); }\n  }\n\n  .risk-label {\n    font-family: 'Press Start 2P', monospace;\n    font-size: 10px;\n    color: var(--dim);\n  }\n\n  .risk-tier {\n    font-family: 'Press Start 2P', monospace;\n    font-size: 22px;\n    color: var(--risk);\n    text-shadow: 0 0 16px var(--risk);\n  }\n\n  .risk-score {\n    font-family: 'Press Start 2P', monospace;\n    font-size: 14px;\n    color: var(--risk);\n    text-align: right;\n  }\n\n  .badges {\n    display: flex;\n    gap: 12px;\n    margin-bottom: 24px;\n    flex-wrap: wrap;\n  }\n\n  .badge {\n    border: 2px solid;\n    padding: 6px 12px;\n    font-size: 11px;\n    font-family: 'Press Start 2P', monospace;\n    font-size: 8px;\n  }\n\n  .badge.ai { border-color: #ff00ff; color: #ff00ff; background: #1a001a; }\n  .badge.no-ai { border-color: #404060; color: #404060; background: #0d0d18; }\n  .badge.ai-risk { border-color: #ff4444; color: #ff4444; background: #1a0000; }\n\n  .section {\n    border: 2px solid var(--border);\n    margin-bottom: 20px;\n    background: var(--panel);\n  }\n\n  .section-header {\n    background: var(--border);\n    padding: 10px 16px;\n    font-family: 'Press Start 2P', monospace;\n    font-size: 9px;\n    color: var(--accent);\n    letter-spacing: 1px;\n  }\n\n  .section-body {\n    padding: 16px;\n  }\n\n  .finding {\n    padding: 8px 0;\n    border-bottom: 1px solid var(--border);\n    color: #ffcc00;\n    font-size: 12px;\n  }\n\n  .finding:last-child { border-bottom: none; }\n\n  .dimension-card {\n    border: 2px solid;\n    margin-bottom: 12px;\n    background: #0d0d18;\n    padding: 14px 16px;\n  }\n\n  .dim-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 8px;\n    flex-wrap: wrap;\n    gap: 8px;\n  }\n\n  .dim-label {\n    font-family: 'Press Start 2P', monospace;\n    font-size: 8px;\n    color: #aaaacc;\n  }\n\n  .dim-score {\n    font-family: 'Press Start 2P', monospace;\n    font-size: 9px;\n    white-space: nowrap;\n  }\n\n  .dim-rationale {\n    color: #8888aa;\n    font-size: 12px;\n    margin-bottom: 8px;\n  }\n\n  .red-flags {\n    list-style: none;\n    padding: 0;\n  }\n\n  .red-flags li {\n    color: #ff6644;\n    font-size: 11px;\n    padding: 2px 0;\n  }\n\n  .footer {\n    text-align: center;\n    margin-top: 32px;\n    color: var(--dim);\n    font-size: 10px;\n    border-top: 2px solid var(--border);\n    padding-top: 16px;\n    font-family: 'Press Start 2P', monospace;\n    font-size: 7px;\n    line-height: 2;\n  }\n\n  .pixel-divider {\n    text-align: center;\n    color: var(--accent);\n    margin: 8px 0;\n    font-size: 10px;\n    letter-spacing: 4px;\n  }\n</style>\n</head>\n<body>\n\n<div class=\"header\">\n  <div class=\"vendor-name\">${data.vendor || 'UNKNOWN VENDOR'}</div>\n  <div class=\"assessment-date\">ASSESSMENT DATE: ${data.assessment_date || 'N/A'}</div>\n</div>\n\n<div class=\"risk-banner\">\n  <div>\n    <div class=\"risk-label\">RISK TIER</div>\n    <div class=\"risk-tier\">${data.risk_tier || 'UNKNOWN'}</div>\n  </div>\n  <div style=\"text-align:right\">\n    <div class=\"risk-label\">WEIGHTED AVG</div>\n    <div class=\"risk-score\">${data.weighted_average || 'N/A'} / 5</div>\n  </div>\n</div>\n\n<div class=\"badges\">\n  ${data.is_ai_vendor \n    ? '<div class=\"badge ai\">⚡ AI VENDOR DETECTED</div>' \n    : '<div class=\"badge no-ai\">○ NOT AI VENDOR</div>'}\n  ${data.ai_training_risk \n    ? '<div class=\"badge ai-risk\">⚠ AI TRAINING RISK</div>' \n    : ''}\n</div>\n\n<div class=\"section\">\n  <div class=\"section-header\">▶ TOP FINDINGS</div>\n  <div class=\"section-body\">\n    ${top3HTML || '<div class=\"finding\">No findings recorded.</div>'}\n  </div>\n</div>\n\n<div class=\"section\">\n  <div class=\"section-header\">▶ DIMENSION SCORES</div>\n  <div class=\"section-body\">\n    ${scoresHTML || '<div>No scores available.</div>'}\n  </div>\n</div>\n\n<div class=\"pixel-divider\">· · · · · · · · · · · · · · · · · · · ·</div>\n\n<div class=\"footer\">\n  GENERATED BY THE PRIVACY LENS · PHASE 1<br>\n  OPEN SOURCE TPRM AUTOMATION · github.com/conorrusso/privacy-risk-analyzer<br>\n  ${new Date().toISOString()}\n</div>\n\n</body>\n</html>`;\n\nconst htmlBuffer = Buffer.from(html, 'utf8');\n\nreturn [{ \n  json: { \n    vendor: data.vendor,\n    assessment_date: data.assessment_date,\n    risk_tier: data.risk_tier\n  },\n  binary: {\n    htmlFile: {\n      data: htmlBuffer.toString('base64'),\n      mimeType: 'text/html',\n      fileName: 'index.html'\n    }\n  }\n}];"
+        "jsCode": "const policyText = $input.first().json.data;\nconst ctx = $input.first().json;\nconst vendor = ctx.vendorName;\nconst folderId = ctx.folderId;\nconst policyUrl = ctx.policyUrl;\nconst assessmentDate = $now.toFormat('yyyy-MM-dd');\n\nconst prompt = `You are a privacy risk analyst. Analyze the following privacy policy and score it across 8 dimensions. Return ONLY valid JSON, no other text, no markdown code fences.\n\nSCORING RUBRIC (1-5):\n1 = Missing or absent\n2 = Vague or inadequate\n3 = Partial - present but incomplete\n4 = Good - mostly complete\n5 = Strong - comprehensive and specific\n\nDIMENSIONS TO SCORE:\nD1 - Data Minimization: Are data categories specific? Are retention windows defined?\nD2 - Sub-Processor Transparency: Is a named sub-processor list published? Change notification mechanism?\nD3 - Data Subject Rights: Are DSAR/deletion/portability mechanisms described with timelines?\nD4 - Transfer Mechanisms: Are cross-border transfer mechanisms named (SCCs, BCRs, adequacy)?\nD5 - Breach Notification: Are customer notification timelines and obligations stated?\nD6 - AI/ML Data Usage (weight 1.5x): Is AI/ML use disclosed? Is training opt-out available?\nD7 - Retention & Deletion: Are specific retention periods and deletion procedures defined?\nD8 - DPA Completeness (weight 1.5x): Does the policy include Art. 28 required elements?\n\nWEIGHTED AVERAGE: D6 and D8 count 1.5x. Calculate weighted average.\nRISK TIER: 1.0-2.0 = HIGH, 2.1-3.5 = MEDIUM, 3.6-5.0 = LOW\n\nReturn this exact JSON structure:\n{\n  \"vendor\": \"<vendor name>\",\n  \"assessment_date\": \"<YYYY-MM-DD>\",\n  \"policy_url\": \"<url>\",\n  \"discovery_tier\": <1, 2, or 3>,\n  \"weighted_average\": <number>,\n  \"risk_tier\": \"HIGH|MEDIUM|LOW\",\n  \"is_ai_vendor\": <true|false>,\n  \"ai_training_risk\": <true|false>,\n  \"scores\": {\n    \"D1_data_minimization\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [\"<flag1>\", \"<flag2>\"] },\n    \"D2_sub_processor\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] },\n    \"D3_subject_rights\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] },\n    \"D4_transfer_mechanisms\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] },\n    \"D5_breach_notification\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] },\n    \"D6_ai_ml_usage\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] },\n    \"D7_retention_deletion\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] },\n    \"D8_dpa_completeness\": { \"score\": <1-5>, \"rationale\": \"<text>\", \"red_flags\": [] }\n  },\n  \"top_3_findings\": [\"<finding1>\", \"<finding2>\", \"<finding3>\"]\n}\n\nVendor: ${vendor}\nPolicy URL: ${policyUrl}\nAssessment Date: ${assessmentDate}\n\nPrivacy Policy Text:\n${policyText}`;\n\nreturn [{\n  json: {\n    folderId,\n    vendorName: vendor,\n    body: JSON.stringify({\n      model: \"claude-sonnet-4-20250514\",\n      max_tokens: 4000,\n      messages: [{ role: \"user\", content: prompt }]\n    })\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
-        96
+        -224,
+        -80
       ],
-      "id": "ff912332-0747-4605-9be4-a058a8f29bd2",
+      "id": "8278eec8-7bbc-4126-951b-097d197fb7a6",
+      "name": "🔧 Build AI Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_ANTHROPIC_API_KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        -80
+      ],
+      "id": "03bc8986-da27-40a7-827b-9957c4c74f57",
+      "name": "🧠 AI Provider — Score Privacy Policy"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rawText = response.content[0].text;\nconst cleaned = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\nconst assessment = JSON.parse(cleaned);\n\n// Thread folderId and vendorName forward from Build AI Request\nconst folderId = $('🔧 Build AI Request').first().json.folderId;\nconst vendorName = $('🔧 Build AI Request').first().json.vendorName;\n\nreturn [{ json: { ...assessment, folderId, vendorName } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -80
+      ],
+      "id": "37ce88d5-5841-41c6-a4d4-ae9db3ffe073",
+      "name": "📊 Parse Assessment JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst riskColor = { 'HIGH': '#ff4444', 'MEDIUM': '#ffaa00', 'LOW': '#00ff88' };\nconst riskBg = { 'HIGH': '#2a0000', 'MEDIUM': '#2a1a00', 'LOW': '#002a1a' };\n\nconst scoreBar = (score) => '█'.repeat(score) + '░'.repeat(5 - score);\nconst scoreColor = (score) => {\n  if (score <= 1) return '#ff4444';\n  if (score <= 2) return '#ff8800';\n  if (score <= 3) return '#ffdd00';\n  return '#00ff88';\n};\n\nconst dimensionLabels = {\n  D1_data_minimization: 'D1 · DATA MINIMIZATION',\n  D2_sub_processor: 'D2 · SUB-PROCESSORS',\n  D3_subject_rights: 'D3 · SUBJECT RIGHTS',\n  D4_transfer_mechanisms: 'D4 · TRANSFER MECHANISMS',\n  D5_breach_notification: 'D5 · BREACH NOTIFICATION',\n  D6_ai_ml_usage: 'D6 · AI/ML DATA USAGE ★',\n  D7_retention_deletion: 'D7 · RETENTION & DELETION',\n  D8_dpa_completeness: 'D8 · DPA COMPLETENESS ★'\n};\n\nconst scoresHTML = Object.entries(data.scores || {}).map(([key, val]) => {\n  const label = dimensionLabels[key] || key;\n  const score = val.score;\n  const rationale = val.rationale || '';\n  const redFlags = (val.red_flags || []).map(f => `<li>⚠ ${f}</li>`).join('');\n  return `\n    <div class=\"dimension-card\" style=\"border-color: ${scoreColor(score)}\">\n      <div class=\"dim-header\">\n        <span class=\"dim-label\">${label}</span>\n        <span class=\"dim-score\" style=\"color: ${scoreColor(score)}\">${scoreBar(score)} ${score}/5</span>\n      </div>\n      <div class=\"dim-rationale\">${rationale}</div>\n      ${redFlags ? `<ul class=\"red-flags\">${redFlags}</ul>` : ''}\n    </div>\n  `;\n}).join('');\n\nconst top3HTML = (data.top_3_findings || []).map(f => `<div class=\"finding\">▶ ${f}</div>`).join('');\n\nconst discoveryBadge = data.discovery_tier ? `<span class=\"badge badge-tier\">🔍 DISCOVERED VIA TIER ${data.discovery_tier}</span>` : '';\n\nconst html = `<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>Privacy Assessment — ${data.vendor}</title>\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap');\n  :root { --bg: #0a0a0f; --panel: #12121a; --border: #2a2a3a; --text: #c8c8e8; --dim: #6060a0; --accent: #7700ff; --risk: ${riskColor[data.risk_tier] || '#ffaa00'}; --risk-bg: ${riskBg[data.risk_tier] || '#2a1a00'}; }\n  * { box-sizing: border-box; margin: 0; padding: 0; }\n  body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 13px; line-height: 1.6; padding: 32px 24px; max-width: 900px; margin: 0 auto; }\n  body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px); pointer-events: none; z-index: 999; }\n  .header { text-align: center; border: 3px solid var(--accent); padding: 24px; margin-bottom: 32px; background: #0d0d18; }\n  .header::before { content: '◄ THE PRIVACY LENS ►'; display: block; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--accent); margin-bottom: 16px; letter-spacing: 2px; }\n  .vendor-name { font-family: 'Press Start 2P', monospace; font-size: 18px; color: #fff; margin-bottom: 8px; text-shadow: 0 0 20px var(--accent); }\n  .assessment-date { color: var(--dim); font-size: 11px; }\n  .risk-banner { background: var(--risk-bg); border: 3px solid var(--risk); padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }\n  .risk-label { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--dim); }\n  .risk-tier { font-family: 'Press Start 2P', monospace; font-size: 22px; color: var(--risk); text-shadow: 0 0 16px var(--risk); }\n  .risk-score { font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--risk); text-align: right; }\n  .badges { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }\n  .badge { border: 2px solid; padding: 6px 12px; font-family: 'Press Start 2P', monospace; font-size: 8px; }\n  .badge.ai { border-color: #ff00ff; color: #ff00ff; background: #1a001a; }\n  .badge.no-ai { border-color: #404060; color: #404060; background: #0d0d18; }\n  .badge.ai-risk { border-color: #ff4444; color: #ff4444; background: #1a0000; }\n  .badge-tier { border-color: #00c8ff; color: #00c8ff; background: #001a2a; }\n  .section { border: 2px solid var(--border); margin-bottom: 20px; background: var(--panel); }\n  .section-header { background: var(--border); padding: 10px 16px; font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--accent); letter-spacing: 1px; }\n  .section-body { padding: 16px; }\n  .finding { padding: 8px 0; border-bottom: 1px solid var(--border); color: #ffcc00; font-size: 12px; }\n  .finding:last-child { border-bottom: none; }\n  .dimension-card { border: 2px solid; margin-bottom: 12px; background: #0d0d18; padding: 14px 16px; }\n  .dim-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }\n  .dim-label { font-family: 'Press Start 2P', monospace; font-size: 8px; color: #aaaacc; }\n  .dim-score { font-family: 'Press Start 2P', monospace; font-size: 9px; white-space: nowrap; }\n  .dim-rationale { color: #8888aa; font-size: 12px; margin-bottom: 8px; }\n  .red-flags { list-style: none; padding: 0; }\n  .red-flags li { color: #ff6644; font-size: 11px; padding: 2px 0; }\n  .footer { text-align: center; margin-top: 32px; color: var(--dim); font-size: 10px; border-top: 2px solid var(--border); padding-top: 16px; font-family: 'Press Start 2P', monospace; font-size: 7px; line-height: 2; }\n  .pixel-divider { text-align: center; color: var(--accent); margin: 8px 0; font-size: 10px; letter-spacing: 4px; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n  <div class=\"vendor-name\">${data.vendor || 'UNKNOWN VENDOR'}</div>\n  <div class=\"assessment-date\">ASSESSMENT DATE: ${data.assessment_date || 'N/A'}</div>\n</div>\n<div class=\"risk-banner\">\n  <div><div class=\"risk-label\">RISK TIER</div><div class=\"risk-tier\">${data.risk_tier || 'UNKNOWN'}</div></div>\n  <div style=\"text-align:right\"><div class=\"risk-label\">WEIGHTED AVG</div><div class=\"risk-score\">${data.weighted_average || 'N/A'} / 5</div></div>\n</div>\n<div class=\"badges\">\n  ${data.is_ai_vendor ? '<div class=\"badge ai\">⚡ AI VENDOR DETECTED</div>' : '<div class=\"badge no-ai\">○ NOT AI VENDOR</div>'}\n  ${data.ai_training_risk ? '<div class=\"badge ai-risk\">⚠ AI TRAINING RISK</div>' : ''}\n  ${discoveryBadge}\n</div>\n<div class=\"section\"><div class=\"section-header\">▶ TOP FINDINGS</div><div class=\"section-body\">${top3HTML || '<div class=\"finding\">No findings recorded.</div>'}</div></div>\n<div class=\"section\"><div class=\"section-header\">▶ DIMENSION SCORES</div><div class=\"section-body\">${scoresHTML || '<div>No scores available.</div>'}</div></div>\n<div class=\"pixel-divider\">· · · · · · · · · · · · · · · · · · · ·</div>\n<div class=\"footer\">\n  GENERATED BY THE PRIVACY LENS · PHASE 2 — BATCH MODE<br>\n  OPEN SOURCE TPRM AUTOMATION · github.com/conorrusso/privacy-risk-analyzer<br>\n  ${new Date().toISOString()}\n</div>\n</body>\n</html>`;\n\nconst htmlBuffer = Buffer.from(html, 'utf8');\nreturn [{ \n  json: { vendor: data.vendor, assessment_date: data.assessment_date, risk_tier: data.risk_tier, folderId: data.folderId },\n  binary: { htmlFile: { data: htmlBuffer.toString('base64'), mimeType: 'text/html', fileName: 'index.html' } }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -80
+      ],
+      "id": "2ff94760-1434-41b5-a3b8-45d2eeb8141f",
       "name": "🎮 Generate HTML Report"
     },
     {
@@ -247,25 +480,24 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1792,
-        0
+        672,
+        -176
       ],
-      "id": "f1fda5fa-630f-46fe-867e-d517991a81cf",
+      "id": "a6e1c65b-11b0-40b5-94c8-aa0b42b6be61",
       "name": "🖨️ Convert to PDF"
     },
     {
       "parameters": {
-        "name": "={{$('🎮 Generate HTML Report').first().json.vendor}}-privacy-assessment-{{$('🎮 Generate HTML Report').first().json.assessment_date}}.pdf",
+        "name": "={{ $('🎮 Generate HTML Report').first().json.vendor }}-privacy-assessment-{{ $('🎮 Generate HTML Report').first().json.assessment_date }}.pdf",
         "driveId": {
           "__rl": true,
-          "value": "My Drive",
+          "value": "MyDrive",
           "mode": "list",
-          "cachedResultName": "My Drive",
-          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+          "cachedResultName": "My Drive"
         },
         "folderId": {
           "__rl": true,
-          "value": "={{$('Search files and folders').first().json.id}}",
+          "value": "={{ $('🎮 Generate HTML Report').first().json.folderId }}",
           "mode": "id"
         },
         "options": {}
@@ -273,10 +505,10 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        2016,
-        0
+        896,
+        192
       ],
-      "id": "052c03f1-30e1-4f85-aec6-c45fd98156b2",
+      "id": "0ee426af-5c9e-4218-a6b5-b2129d60f8af",
       "name": "🌐 Save PDF to Drive",
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -288,16 +520,17 @@
     {
       "parameters": {
         "operation": "createFromText",
-        "content": "={{JSON.stringify($('📊 Parse Assessment JSON').first().json)}}",
-        "name": "={{$('📊 Parse Assessment JSON').first().json.vendor}}-privacy-assessment-{{$('📊 Parse Assessment JSON').first().json.assessment_date}}.json",
+        "content": "={{ JSON.stringify($('📊 Parse Assessment JSON').first().json, null, 2) }}",
+        "name": "={{ $json.vendor }}-privacy-assessment-{{ $json.assessment_date }}.json",
         "driveId": {
           "__rl": true,
+          "value": "MyDrive",
           "mode": "list",
-          "value": "My Drive"
+          "cachedResultName": "My Drive"
         },
         "folderId": {
           "__rl": true,
-          "value": "={{$('Search files and folders').first().json.id}}",
+          "value": "={{ $json.folderId }}",
           "mode": "id"
         },
         "options": {}
@@ -305,10 +538,10 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        2016,
-        192
+        672,
+        48
       ],
-      "id": "3adbd8e4-9366-4c14-bba9-e02d6181a1fd",
+      "id": "0febbeac-c957-4607-819a-b19bab3a1fc8",
       "name": "💾 Save JSON to Vendor Folder",
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -319,42 +552,318 @@
     },
     {
       "parameters": {
-        "content": "// Phase 2: this will be dynamic — looping all subfolders",
-        "width": 198,
-        "color": 4
+        "operation": "createFromText",
+        "content": "={{ JSON.stringify({ vendor: $json.vendorName, domain: $json.domain, reason: $json.manualReviewReason, flaggedAt: $now }, null, 2) }}",
+        "name": "=needs-manual-review-{{ $now.format('yyyy-MM-dd') }}.json",
+        "driveId": {
+          "__rl": true,
+          "value": "MyDrive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_",
+          "mode": "id"
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
       "position": [
-        176,
-        400
+        -672,
+        144
       ],
-      "id": "672adeb7-c8a8-401a-8f01-5e1d36cd6234",
-      "name": "Sticky Note1"
+      "id": "c690240e-a3f2-4eec-b0ce-b660edaefab4",
+      "name": "🚩 Log to Manual Review",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "goGjaQCO0aHJ8wHa",
+          "name": "Google Drive account"
+        }
+      }
     },
     {
       "parameters": {
-        "content": "// Phase 2: URL will be auto-discovered via 3-tier chain",
-        "width": 150,
-        "color": 4
+        "jsCode": "console.log(\"Batch complete\");\nreturn [];"
       },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        640,
-        -96
+        -3136,
+        240
       ],
-      "id": "de32845a-c5bc-4597-9888-224ee4401a11",
-      "name": "Sticky Note2"
+      "id": "bbe0b64e-90b7-46be-bab2-5cae23087596",
+      "name": "✅ Batch Complete"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -3136,
+        16
+      ],
+      "id": "cdb862d7-bb6d-4e51-aab7-e9164782428f",
+      "name": "Wait",
+      "webhookId": "0242c3d2-b303-4ade-ba9e-f112df5596c3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data || '';\n\n// Strip all script/style tags and HTML markup to get clean policy text\nlet text = html\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&#\\d+;/g, ' ')\n  .replace(/\\s{3,}/g, '\\n\\n')\n  .trim();\n\nconst ctx = $('🔗 Prepare Fetch Context').first().json;\n\nreturn [{\n  json: {\n    data: text,\n    policyUrl: ctx.policyUrl,\n    vendorName: ctx.vendorName,\n    folderId: ctx.folderId,\n    discoveryTier: ctx.discoveryTier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        -80
+      ],
+      "id": "adc1314e-d6ad-420e-a8db-74eb854d1ab4",
+      "name": "📄 Extract Policy Text"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2c639480-2965-405d-9408-bddda520f8c0",
+              "leftValue": "={{ $json.discovered }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2032,
+        16
+      ],
+      "id": "2eea2883-c3d9-457f-9e17-b35f60eaf99f",
+      "name": "✅ Tier 1 Found URL?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    policyUrl: $json.policyUrl,\n    vendorName: $json.vendorName,\n    folderId: $json.folderId,\n    discoveryTier: $json.discoveryTier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        -80
+      ],
+      "id": "eb1f0eeb-0115-4bfb-af53-21c680e24871",
+      "name": "🔗 Prepare Fetch Context"
     }
   ],
   "pinData": {},
   "connections": {
-    "🔗 Trigger — Manual": {
+    "🚀 Trigger — Run Batch Assessment": {
       "main": [
         [
           {
-            "node": "Search files and folders",
+            "node": "📂 List All Vendor Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📂 List All Vendor Folders": {
+      "main": [
+        [
+          {
+            "node": "🔍 Check If Assessment Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Check If Assessment Exists": {
+      "main": [
+        [
+          {
+            "node": "🗓️ Check Assessment Age",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗓️ Check Assessment Age": {
+      "main": [
+        [
+          {
+            "node": "✅ Skip If Already Assessed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Skip If Already Assessed?": {
+      "main": [
+        [
+          {
+            "node": "⏭️ Skip Vendor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔁 Loop Over Vendors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭️ Skip Vendor": {
+      "main": [
+        [
+          {
+            "node": "🔁 Loop Over Vendors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Loop Over Vendors": {
+      "main": [
+        [
+          {
+            "node": "✅ Batch Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 AI — Resolve Vendor Domain": {
+      "main": [
+        [
+          {
+            "node": "🗂️ Build URL Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗂️ Build URL Candidates": {
+      "main": [
+        [
+          {
+            "node": "🌐 Tier 1 — Try Common Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Tier 1 — Try Common Paths": {
+      "main": [
+        [
+          {
+            "node": "🔎 Check Tier 1 Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Check Tier 1 Result": {
+      "main": [
+        [
+          {
+            "node": "✅ Tier 1 Found URL?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Tier 2 — Fetch robots.txt": {
+      "main": [
+        [
+          {
+            "node": "🔎 Parse robots.txt for Privacy URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Parse robots.txt for Privacy URL": {
+      "main": [
+        [
+          {
+            "node": "🏠 Tier 3 — Scrape Homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏠 Tier 3 — Scrape Homepage": {
+      "main": [
+        [
+          {
+            "node": "🔎 Parse Homepage for Privacy Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Parse Homepage for Privacy Link": {
+      "main": [
+        [
+          {
+            "node": "URL Discovered?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL Discovered?": {
+      "main": [
+        [
+          {
+            "node": "🔗 Prepare Fetch Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🚩 Log to Manual Review",
             "type": "main",
             "index": 0
           }
@@ -365,14 +874,14 @@
       "main": [
         [
           {
-            "node": "🧹 Strip HTML",
+            "node": "📄 Extract Policy Text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🧹 Strip HTML": {
+    "🔧 Build AI Request": {
       "main": [
         [
           {
@@ -405,46 +914,6 @@
         ]
       ]
     },
-    "Search files and folders": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "📥 Fetch Privacy Policy",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Stop and Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "📋 Format Risk Summary": {
-      "main": [
-        [
-          {
-            "node": "💾 Save JSON to Vendor Folder",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "🎮 Generate HTML Report": {
       "main": [
         [
@@ -454,7 +923,7 @@
             "index": 0
           },
           {
-            "node": "📋 Format Risk Summary",
+            "node": "💾 Save JSON to Vendor Folder",
             "type": "main",
             "index": 0
           }
@@ -474,7 +943,86 @@
     },
     "🌐 Save PDF to Drive": {
       "main": [
-        []
+        [
+          {
+            "node": "🔁 Loop Over Vendors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚩 Log to Manual Review": {
+      "main": [
+        [
+          {
+            "node": "🔁 Loop Over Vendors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Save JSON to Vendor Folder": {
+      "main": [
+        [
+          {
+            "node": "🔁 Loop Over Vendors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "🧠 AI — Resolve Vendor Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Extract Policy Text": {
+      "main": [
+        [
+          {
+            "node": "🔧 Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Tier 1 Found URL?": {
+      "main": [
+        [
+          {
+            "node": "🔗 Prepare Fetch Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🤖 Tier 2 — Fetch robots.txt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Prepare Fetch Context": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch Privacy Policy",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -484,11 +1032,10 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "55447dd7-8d0d-4c52-92a7-c487a859860c",
+  "versionId": "79eb027b-53e9-425c-b7ff-422e7223c89a",
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "c3be1ad59fca6da901de0e93ad1256da8e8ca2cb37ef7c63b41ba594ba540d39"
   },
-  "id": "DeZYMB6SyGv6lzDX",
+  "id": "n9dogIHGdDVEbVX1",
   "tags": []
 }
