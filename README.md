@@ -167,7 +167,7 @@ Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall *
 
 ### API Keys
 - Store all API keys as **n8n credentials**, never hardcoded in workflow nodes.
-- If a key was ever pasted directly into a workflow node during testing, rotate it immediately.
+- Before sharing or publishing a workflow JSON, confirm no credentials are embedded in node parameters.
 
 ### Browserless
 - Browserless is protected by a token (`TOKEN=privacy-lens` in `docker-compose.yml`). Change this for any shared or production environment.
