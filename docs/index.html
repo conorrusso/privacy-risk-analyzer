@@ -1,1309 +1,934 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Privacy Lens — Privacy Risk Analyzer</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
-
-  :root {
-    --black:   #0a0a0f;
-    --dark:    #0f0f1a;
-    --panel:   #13131f;
-    --border:  #1e1e3a;
-    --navy:    #1a1a2e;
-    --blue1:   #0d2b45;
-    --blue2:   #16213e;
-    --pixel:   #00c8ff;
-    --pixel2:  #0077ff;
-    --accent:  #7b2fff;
-    --green:   #00ff9d;
-    --yellow:  #ffe600;
-    --red:     #ff3860;
-    --white:   #e8eaf6;
-    --dim:     #4a4a7a;
-    --scan:    rgba(0,200,255,0.03);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; image-rendering: pixelated; }
-
-  body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'VT323', monospace;
-    font-size: 18px;
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-
-  /* SCANLINES */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      var(--scan) 2px,
-      var(--scan) 4px
-    );
-    pointer-events: none;
-    z-index: 1000;
-  }
-
-  /* PIXEL BORDER MIXIN */
-  .px-border {
-    border: 4px solid var(--pixel);
-    box-shadow:
-      0 0 0 4px var(--black),
-      0 0 0 8px var(--pixel2),
-      0 0 24px rgba(0,200,255,0.15),
-      inset 0 0 24px rgba(0,200,255,0.05);
-  }
-
-  .px-border-accent {
-    border: 4px solid var(--accent);
-    box-shadow:
-      0 0 0 4px var(--black),
-      0 0 0 8px var(--accent),
-      0 0 24px rgba(123,47,255,0.2),
-      inset 0 0 24px rgba(123,47,255,0.05);
-  }
-
-  /* ── HERO ─────────────────────────────────────────────── */
-  .hero {
-    position: relative;
-    padding: 60px 40px 50px;
-    background: var(--dark);
-    border-bottom: 4px solid var(--border);
-    overflow: hidden;
-    text-align: center;
-  }
-
-  /* Pixel grid background */
-  .hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 32px 32px;
-    opacity: 0.4;
-    pointer-events: none;
-  }
-
-  /* THE BIG LENS - pure CSS pixel art */
-  .lens-container {
-    position: relative;
-    width: 180px;
-    height: 180px;
-    margin: 0 auto 32px;
-    animation: lens-pulse 3s ease-in-out infinite;
-  }
-
-  @keyframes lens-pulse {
-    0%, 100% { filter: drop-shadow(0 0 12px var(--pixel)) drop-shadow(0 0 24px var(--pixel2)); }
-    50%       { filter: drop-shadow(0 0 20px var(--pixel)) drop-shadow(0 0 40px var(--pixel2)) drop-shadow(0 0 60px var(--accent)); }
-  }
-
-  .lens-svg {
-    width: 180px;
-    height: 180px;
-  }
-
-  /* scanline sweep inside lens */
-  .lens-scan {
-    position: absolute;
-    top: 20px; left: 20px; right: 20px;
-    height: 4px;
-    background: linear-gradient(90deg, transparent, var(--pixel), var(--green), var(--pixel), transparent);
-    animation: scan-sweep 2.4s linear infinite;
-    opacity: 0.7;
-    border-radius: 2px;
-  }
-
-  @keyframes scan-sweep {
-    0%   { top: 20px; opacity: 0; }
-    10%  { opacity: 0.8; }
-    90%  { opacity: 0.8; }
-    100% { top: 150px; opacity: 0; }
-  }
-
-  /* TITLE */
-  .hero-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: clamp(14px, 3vw, 22px);
-    color: var(--pixel);
-    letter-spacing: 3px;
-    text-shadow:
-      4px 4px 0 var(--pixel2),
-      0 0 20px var(--pixel),
-      0 0 40px rgba(0,200,255,0.4);
-    line-height: 1.5;
-    position: relative;
-    z-index: 1;
-    animation: title-flicker 8s ease-in-out infinite;
-  }
-
-  @keyframes title-flicker {
-    0%,94%,96%,100% { opacity: 1; }
-    95% { opacity: 0.85; }
-  }
-
-  .hero-sub {
-    font-family: 'VT323', monospace;
-    font-size: 26px;
-    color: var(--dim);
-    margin-top: 12px;
-    letter-spacing: 2px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .hero-sub span { color: var(--green); }
-
-  /* BADGE ROW */
-  .badge-row {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 28px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .badge {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    padding: 6px 10px;
-    border: 2px solid;
-    letter-spacing: 1px;
-    animation: badge-blink 4s ease-in-out infinite;
-  }
-
-  .badge-blue  { color: var(--pixel);  border-color: var(--pixel);  background: rgba(0,200,255,0.08); }
-  .badge-green { color: var(--green);  border-color: var(--green);  background: rgba(0,255,157,0.08); animation-delay: 0.5s; }
-  .badge-purple{ color: var(--accent); border-color: var(--accent); background: rgba(123,47,255,0.08); animation-delay: 1s; }
-  .badge-yellow{ color: var(--yellow); border-color: var(--yellow); background: rgba(255,230,0,0.08); animation-delay: 1.5s; }
-
-  @keyframes badge-blink {
-    0%,88%,92%,100% { opacity: 1; }
-    90% { opacity: 0.5; }
-  }
-
-  /* ── LAYOUT ───────────────────────────────────────────── */
-  .content {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 0 24px 80px;
-  }
-
-  /* ── SECTION HEADER ───────────────────────────────────── */
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin: 52px 0 20px;
-  }
-
-  .section-num {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    color: var(--black);
-    background: var(--pixel);
-    padding: 6px 10px;
-    flex-shrink: 0;
-  }
-
-  .section-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    color: var(--pixel);
-    letter-spacing: 2px;
-    text-shadow: 2px 2px 0 var(--pixel2);
-  }
-
-  .section-line {
-    flex: 1;
-    height: 2px;
-    background: linear-gradient(90deg, var(--pixel2), transparent);
-  }
-
-  /* ── WHAT IS THIS ─────────────────────────────────────── */
-  .what-box {
-    background: var(--panel);
-    border-left: 6px solid var(--pixel);
-    padding: 24px 28px;
-    margin-bottom: 28px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .what-box::before {
-    content: '// README.md';
-    position: absolute;
-    top: 10px; right: 16px;
-    font-family: 'VT323', monospace;
-    font-size: 16px;
-    color: var(--dim);
-    letter-spacing: 1px;
-  }
-
-  .what-box p {
-    font-size: 20px;
-    color: var(--white);
-    line-height: 1.7;
-  }
-
-  .what-box p + p { margin-top: 12px; }
-  .what-box .hl  { color: var(--pixel); }
-  .what-box .hl2 { color: var(--green); }
-  .what-box .hl3 { color: var(--yellow); }
-
-  /* ── 3-LAYER DIAGRAM ──────────────────────────────────── */
-  .pipeline {
-    display: grid;
-    grid-template-columns: 1fr 28px 1fr 28px 1fr 28px 1fr;
-    gap: 0;
-    margin: 20px 0 32px;
-    align-items: center;
-  }
-
-  .pipe-stage {
-    background: var(--panel);
-    border: 3px solid var(--border);
-    padding: 16px 12px;
-    text-align: center;
-    position: relative;
-    transition: border-color 0.2s;
-  }
-
-  .pipe-stage:hover { border-color: var(--pixel); }
-
-  .pipe-stage .pipe-icon {
-    font-size: 32px;
-    display: block;
-    margin-bottom: 10px;
-    filter: drop-shadow(0 0 8px currentColor);
-  }
-
-  .pipe-stage .pipe-name {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    color: var(--pixel);
-    display: block;
-    margin-bottom: 8px;
-    letter-spacing: 1px;
-  }
-
-  .pipe-stage .pipe-desc {
-    font-size: 14px;
-    color: var(--dim);
-    line-height: 1.4;
-  }
-
-  .pipe-arrow {
-    text-align: center;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 16px;
-    color: var(--pixel2);
-    text-shadow: 0 0 8px var(--pixel);
-    animation: arrow-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes arrow-pulse {
-    0%,100% { opacity: 0.4; transform: translateX(0); }
-    50%      { opacity: 1;   transform: translateX(4px); }
-  }
-
-  /* ── FRAMEWORK GRID ───────────────────────────────────── */
-  .framework-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
-    margin: 20px 0;
-    background: var(--border);
-    border: 3px solid var(--border);
-  }
-
-  .dim-cell {
-    background: var(--panel);
-    padding: 16px 12px;
-    position: relative;
-    cursor: default;
-    transition: background 0.15s;
-    overflow: hidden;
-  }
-
-  .dim-cell:hover { background: var(--blue1); }
-
-  .dim-cell::before {
-    content: attr(data-num);
-    position: absolute;
-    top: 8px; right: 10px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    color: var(--dim);
-  }
-
-  .dim-icon {
-    font-size: 24px;
-    display: block;
-    margin-bottom: 8px;
-    filter: drop-shadow(0 0 4px rgba(0,200,255,0.5));
-  }
-
-  .dim-name {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 7px;
-    color: var(--pixel);
-    line-height: 1.6;
-    letter-spacing: 0.5px;
-  }
-
-  .dim-reg {
-    font-size: 14px;
-    color: var(--dim);
-    margin-top: 6px;
-    display: block;
-  }
-
-  /* hover reveal */
-  .dim-detail {
-    position: absolute;
-    inset: 0;
-    background: var(--navy);
-    border: 2px solid var(--pixel);
-    padding: 12px;
-    opacity: 0;
-    transition: opacity 0.2s;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    z-index: 10;
-  }
-
-  .dim-cell:hover .dim-detail { opacity: 1; }
-
-  .dim-detail p {
-    font-size: 14px;
-    color: var(--white);
-    line-height: 1.5;
-  }
-
-  .dim-detail .flag {
-    font-size: 13px;
-    color: var(--red);
-    margin-top: 6px;
-  }
-
-  /* ── RISK TIERS ───────────────────────────────────────── */
-  .tier-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    margin: 20px 0;
-  }
-
-  .tier-card {
-    background: var(--panel);
-    border: 3px solid var(--border);
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .tier-card::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 3px;
-  }
-
-  .tier-high   { border-color: var(--red);    } .tier-high::after   { background: var(--red); }
-  .tier-medium { border-color: #ff8c00; }       .tier-medium::after { background: #ff8c00; }
-  .tier-low    { border-color: var(--green); }  .tier-low::after    { background: var(--green); }
-  .tier-ai     { border-color: var(--accent); } .tier-ai::after     { background: var(--accent); }
-
-  .tier-label {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .tier-high   .tier-label { color: var(--red);    }
-  .tier-medium .tier-label { color: #ff8c00; }
-  .tier-low    .tier-label { color: var(--green);  }
-  .tier-ai     .tier-label { color: var(--accent); }
-
-  .tier-trigger {
-    font-size: 15px;
-    color: var(--dim);
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid var(--border);
-    font-style: italic;
-  }
-
-  .tier-action {
-    font-size: 16px;
-    color: var(--white);
-    line-height: 1.6;
-  }
-
-  .tier-action li {
-    list-style: none;
-    padding-left: 18px;
-    position: relative;
-    margin-bottom: 4px;
-  }
-
-  .tier-action li::before { content: '▸'; position: absolute; left: 0; color: inherit; }
-  .tier-high   .tier-action li::before { color: var(--red); }
-  .tier-medium .tier-action li::before { color: #ff8c00; }
-  .tier-low    .tier-action li::before { color: var(--green); }
-  .tier-ai     .tier-action li::before { color: var(--accent); }
-
-  /* ── STACK ────────────────────────────────────────────── */
-  .stack-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-    margin: 20px 0;
-    background: var(--border);
-  }
-
-  .stack-cell {
-    background: var(--panel);
-    padding: 20px 14px;
-    text-align: center;
-  }
-
-  .stack-icon { font-size: 32px; display: block; margin-bottom: 10px; }
-
-  .stack-name {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    color: var(--pixel);
-    letter-spacing: 1px;
-    display: block;
-    margin-bottom: 6px;
-  }
-
-  .stack-role { font-size: 15px; color: var(--dim); }
-
-  /* ── PHASES ───────────────────────────────────────────── */
-  .phase-list { margin: 20px 0; }
-
-  .phase-item {
-    display: grid;
-    grid-template-columns: 100px 1fr;
-    gap: 0;
-    margin-bottom: 4px;
-    min-height: 72px;
-  }
-
-  .phase-num {
-    background: var(--pixel2);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 8px;
-  }
-
-  .phase-num span:first-child {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    color: var(--black);
-    letter-spacing: 1px;
-  }
-
-  .phase-num span:last-child {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
-    color: var(--black);
-    margin-top: 4px;
-  }
-
-  .phase-body {
-    background: var(--panel);
-    border: 2px solid var(--border);
-    border-left: none;
-    padding: 14px 18px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .phase-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    color: var(--white);
-    letter-spacing: 1px;
-    margin-bottom: 6px;
-  }
-
-  .phase-meta {
-    font-size: 16px;
-    color: var(--dim);
-  }
-
-  .phase-meta .dur { color: var(--dim); }
-  .phase-meta .status-complete { color: var(--green); }
-  .phase-meta .status-next     { color: var(--pixel); }
-  .phase-meta .status-planned  { color: var(--dim); }
-  .phase-meta .deliv { color: var(--green); }
-
-  /* PROGRESS BAR */
-  .phase-progress {
-    height: 6px;
-    background: var(--border);
-    margin-top: 8px;
-    position: relative;
-  }
-
-  .phase-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--pixel2), var(--pixel));
-    animation: progress-fill 1.5s ease-out forwards;
-    width: 0;
-  }
-
-  @keyframes progress-fill {
-    to { width: var(--target-width); }
-  }
-
-  /* ── CTA / INSTALL ────────────────────────────────────── */
-  .cta-box {
-    margin: 40px 0 20px;
-    background: var(--panel);
-    border: 4px solid var(--green);
-    box-shadow: 0 0 0 4px var(--black), 0 0 0 8px var(--green), 0 0 32px rgba(0,255,157,0.1);
-    padding: 32px;
-    text-align: center;
-  }
-
-  .cta-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 13px;
-    color: var(--green);
-    text-shadow: 2px 2px 0 #007745, 0 0 16px var(--green);
-    margin-bottom: 20px;
-    letter-spacing: 2px;
-  }
-
-  .code-block {
-    background: var(--black);
-    border: 2px solid var(--dim);
-    padding: 16px 20px;
-    font-family: 'VT323', monospace;
-    font-size: 20px;
-    color: var(--green);
-    text-align: left;
-    margin: 16px 0;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .code-block::before {
-    content: '$ ';
-    color: var(--pixel);
-  }
-
-  .code-block .cursor {
-    display: inline-block;
-    width: 10px;
-    height: 18px;
-    background: var(--green);
-    vertical-align: text-bottom;
-    animation: cursor-blink 1s step-end infinite;
-  }
-
-  @keyframes cursor-blink {
-    0%,100% { opacity: 1; }
-    50%      { opacity: 0; }
-  }
-
-  /* ── FOOTER ───────────────────────────────────────────── */
-  .footer {
-    background: var(--dark);
-    border-top: 4px solid var(--border);
-    padding: 32px 40px;
-    text-align: center;
-  }
-
-  .footer-logo {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    color: var(--pixel);
-    letter-spacing: 3px;
-    text-shadow: 2px 2px 0 var(--pixel2), 0 0 16px var(--pixel);
-    margin-bottom: 12px;
-  }
-
-  .footer-tag {
-    font-size: 18px;
-    color: var(--dim);
-    letter-spacing: 1px;
-  }
-
-  .footer-tag span { color: var(--green); }
-
-  /* ── PIXEL CORNER ORNAMENTS ───────────────────────────── */
-  .corner-ornament {
-    position: relative;
-  }
-
-  .corner-ornament::before,
-  .corner-ornament::after {
-    content: '◈';
-    position: absolute;
-    font-size: 12px;
-    color: var(--pixel2);
-    top: -8px;
-  }
-
-  .corner-ornament::before { left: -4px; }
-  .corner-ornament::after  { right: -4px; }
-
-  /* ── UTILITY ──────────────────────────────────────────── */
-  .mono {
-    font-family: 'VT323', monospace;
-    color: var(--pixel);
-    font-size: 20px;
-  }
-
-  .tag {
-    display: inline-block;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 7px;
-    padding: 3px 7px;
-    background: rgba(0,200,255,0.12);
-    border: 1px solid var(--pixel2);
-    color: var(--pixel);
-    margin: 2px;
-  }
-
-  /* ── RESPONSIVE ───────────────────────────────────────── */
-  @media (max-width: 700px) {
-    .framework-grid { grid-template-columns: repeat(2, 1fr); }
-    .tier-grid      { grid-template-columns: 1fr; }
-    .stack-row      { grid-template-columns: repeat(2, 1fr); }
-    .pipeline       { grid-template-columns: 1fr; }
-    .pipe-arrow     { transform: rotate(90deg); }
-    .hero-title     { font-size: 13px; }
-  }
-</style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bandit — Vendor Risk Intelligence Suite</title>
+  <meta name="description" content="A crew of AI-powered auditors that rummage through your vendors' privacy policies, contracts and compliance docs — so you don't have to."/>
+  <meta property="og:title" content="Bandit — Vendor Risk Intelligence Suite"/>
+  <meta property="og:description" content="Open-source n8n workflows for automated vendor risk assessment."/>
+  <meta property="og:type" content="website"/>
+  <style>
+    /* ── Reset ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: #F4EFE4; font-family: 'Courier New', Courier, monospace; color: #1A1510; }
+
+    /* ── Tokens ─────────────────────────────────────────────────── */
+    :root {
+      --cream:   #F4EFE4;
+      --cream2:  #EDE7DA;
+      --border:  #D0C8B8;
+      --ink:     #1A1510;
+      --muted:   #6B5C44;
+      --hint:    #8B7A5A;
+      --brown:   #8B5A2B;
+      --gold:    #C8901C;
+      --dark:    #2E1C0C;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 40px; border-bottom: 1.5px solid var(--border);
+      background: var(--cream); position: sticky; top: 0; z-index: 100;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-wordmark { font-size: 18px; font-weight: 700; letter-spacing: .08em; color: var(--ink); }
+    .nav-sub { font-size: 9px; color: var(--hint); letter-spacing: .14em; text-transform: uppercase; margin-top: 1px; }
+    .nav-links { display: flex; gap: 24px; list-style: none; }
+    .nav-links a { font-size: 12px; color: var(--muted); text-decoration: none; letter-spacing: .04em; }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-cta {
+      background: var(--ink); color: var(--cream); border: none; border-radius: 3px;
+      padding: 8px 16px; font-family: inherit; font-size: 11px; font-weight: 700;
+      letter-spacing: .09em; cursor: pointer; text-decoration: none; display: inline-block;
+    }
+    .nav-cta:hover { background: #3A2C1C; }
+
+    /* ── Hero ───────────────────────────────────────────────────── */
+    .hero {
+      padding: 80px 40px 72px;
+      background-color: var(--cream);
+      background-image: radial-gradient(circle, #B8AA90 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .hero-text { max-width: 640px; }
+    .eyebrow {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      letter-spacing: .18em; color: #8B6A3A; text-transform: uppercase;
+      border: 1.5px solid #C0A870; border-radius: 2px; padding: 4px 10px; margin-bottom: 20px;
+    }
+    .punchline { font-size: 10px; font-weight: 700; color: var(--hint); letter-spacing: .1em; margin-bottom: 10px; line-height: 1.5; }
+    .hero-title { font-size: 100px; font-weight: 700; line-height: .88; letter-spacing: -.02em; margin-bottom: 10px; }
+    .hero-tag { font-size: 12px; color: var(--hint); letter-spacing: .22em; text-transform: uppercase; margin-bottom: 24px; }
+    .hero-desc { font-size: 14px; color: #5C4C38; line-height: 1.8; font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto 32px; }
+    .hero-btns { display: flex; gap: 11px; flex-wrap: wrap; justify-content: center; }
+    .btn-primary {
+      background: var(--ink); color: var(--cream); border: none; border-radius: 3px;
+      padding: 12px 26px; font-family: inherit; font-size: 11px; font-weight: 700;
+      letter-spacing: .08em; cursor: pointer; text-decoration: none; display: inline-block;
+    }
+    .btn-primary:hover { background: #3A2C1C; }
+    .btn-ghost {
+      background: transparent; color: var(--ink); border: 1.5px solid var(--border);
+      border-radius: 3px; padding: 12px 26px; font-family: inherit; font-size: 11px;
+      font-weight: 700; letter-spacing: .08em; cursor: pointer; text-decoration: none;
+      display: inline-block;
+    }
+    .btn-ghost:hover { border-color: var(--hint); }
+
+    /* ── Rooftop scene (full bleed, fades in from cream) ────────── */
+    .scene-section {
+      position: relative; overflow: hidden; line-height: 0;
+      margin: 0; padding: 0;
+    }
+    .scene-section::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 120px; z-index: 1; pointer-events: none;
+      background: linear-gradient(to bottom, #F4EFE4 0%, transparent 100%);
+    }
+    .scene-section svg { display: block; width: 100%; height: auto; }
+
+    /* ── Problem strip ──────────────────────────────────────────── */
+    .strip {
+      background: var(--cream2); border-top: 1.5px solid var(--border);
+      border-bottom: 1.5px solid var(--border); padding: 48px 40px;
+    }
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .18em; color: #8B6A3A;
+      text-transform: uppercase; text-align: center; margin-bottom: 8px;
+    }
+    .section-h2 {
+      font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 36px;
+      max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.3;
+    }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; max-width: 800px; margin: 0 auto; }
+    .card {
+      background: var(--cream); border: 1.5px solid var(--border); border-radius: 6px; padding: 18px 14px;
+    }
+    .card-title { font-size: 12px; font-weight: 700; color: var(--ink); letter-spacing: .05em; margin-bottom: 5px; }
+    .card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; font-family: system-ui, sans-serif; }
+
+    /* ── Crew ───────────────────────────────────────────────────── */
+    .crew { padding: 52px 40px; }
+    .crew-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; max-width: 900px; margin: 0 auto;
+    }
+    .crew-card {
+      background: var(--cream); border: 1.5px solid var(--border); border-radius: 6px;
+      padding: 18px 10px 14px; text-align: center; transition: border-color .15s;
+    }
+    .crew-card:hover { border-color: var(--hint); }
+    .crew-card.live { border: 2px solid var(--brown); }
+    .crew-card.dim { opacity: .55; }
+    .crew-avatar { display: block; margin: 0 auto 10px; }
+    .crew-code { font-size: 10px; font-weight: 700; letter-spacing: .13em; color: var(--brown); margin-bottom: 3px; }
+    .crew-role { font-size: 11px; font-weight: 700; margin-bottom: 5px; }
+    .crew-desc { font-size: 11px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.5; margin-bottom: 8px; }
+    .badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .1em; border-radius: 2px; padding: 2px 7px; }
+    .badge-live { background: #D4EDDA; color: #1A5C2A; border: 1px solid #8BC49A; }
+    .badge-soon { background: var(--cream2); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── Tagline ────────────────────────────────────────────────── */
+    .tagline-section { padding: 52px 40px; text-align: center; }
+    .tagline-h { font-size: 30px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+    .tagline-h span { color: var(--brown); }
+    .tagline-sub { font-size: 13px; color: var(--hint); margin-top: 10px; font-family: system-ui, sans-serif; letter-spacing: .04em; }
+    .tagline-cta { margin-top: 28px; }
+
+    /* ── Cave footer scene ──────────────────────────────────────── */
+    .cave-scene { display: block; width: 100%; overflow: hidden; }
+    .cave-scene svg { display: block; width: 100%; }
+
+    /* ── Footer bar ─────────────────────────────────────────────── */
+    footer {
+      background: var(--ink); padding: 18px 40px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    }
+    .footer-name { font-size: 14px; font-weight: 700; color: var(--cream); letter-spacing: .1em; }
+    .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+    .footer-links a { font-size: 11px; color: var(--hint); text-decoration: none; }
+    .footer-links a:hover { color: var(--cream); }
+    .footer-gh { font-size: 11px; color: #8B6A3A; letter-spacing: .04em; }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      nav { padding: 12px 16px; }
+      .nav-links { display: none; }
+      .hero { padding: 40px 16px 48px; }
+      .hero-title { font-size: 64px; }
+      .strip, .crew, .tagline-section { padding: 36px 16px; }
+      footer { padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
 </head>
 <body>
 
-<!-- ══════════════════════ HERO ══════════════════════════ -->
-<div class="hero">
-  <div class="lens-container">
-    <svg class="lens-svg" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
-      <!-- Outer bezel - pixelated circle -->
-      <rect x="16" y="56" width="8" height="68" fill="#0077ff"/>
-      <rect x="24" y="32" width="8" height="8"  fill="#0077ff"/>
-      <rect x="32" y="24" width="8" height="8"  fill="#0077ff"/>
-      <rect x="24" y="140" width="8" height="8" fill="#0077ff"/>
-      <rect x="32" y="148" width="8" height="8" fill="#0077ff"/>
-      <rect x="56" y="16" width="68" height="8" fill="#0077ff"/>
-      <rect x="56" y="156" width="68" height="8" fill="#0077ff"/>
-      <rect x="140" y="24" width="8" height="8" fill="#0077ff"/>
-      <rect x="148" y="32" width="8" height="8" fill="#0077ff"/>
-      <rect x="140" y="148" width="8" height="8" fill="#0077ff"/>
-      <rect x="148" y="140" width="8" height="8" fill="#0077ff"/>
-      <rect x="156" y="56" width="8" height="68" fill="#0077ff"/>
-
-      <!-- Glass body -->
-      <rect x="24" y="40" width="8" height="100" fill="#00c8ff" opacity="0.6"/>
-      <rect x="32" y="32" width="8" height="8"  fill="#00c8ff" opacity="0.6"/>
-      <rect x="148" y="40" width="8" height="100" fill="#00c8ff" opacity="0.6"/>
-      <rect x="140" y="32" width="8" height="8"  fill="#00c8ff" opacity="0.6"/>
-      <rect x="40" y="24" width="100" height="8" fill="#00c8ff" opacity="0.6"/>
-      <rect x="40" y="148" width="100" height="8" fill="#00c8ff" opacity="0.6"/>
-
-      <!-- Inner lens glass fill -->
-      <rect x="32" y="40" width="116" height="100" fill="#0d1b2e" opacity="0.95"/>
-      <rect x="24" y="48" width="8" height="84" fill="#0d1b2e" opacity="0.95"/>
-      <rect x="148" y="48" width="8" height="84" fill="#0d1b2e" opacity="0.95"/>
-
-      <!-- Lens tint layers -->
-      <rect x="32" y="40" width="116" height="100" fill="#00c8ff" opacity="0.04"/>
-
-      <!-- Lens reflection highlight (top-left corner) -->
-      <rect x="40" y="44" width="32" height="4"  fill="#00c8ff" opacity="0.35"/>
-      <rect x="40" y="48" width="16" height="4"  fill="#00c8ff" opacity="0.20"/>
-      <rect x="36" y="48" width="4"  height="28" fill="#00c8ff" opacity="0.20"/>
-
-      <!-- Inner iris rings -->
-      <!-- Ring 3 (outer) -->
-      <rect x="48" y="56" width="84" height="4"  fill="#0077ff" opacity="0.5"/>
-      <rect x="48" y="120" width="84" height="4" fill="#0077ff" opacity="0.5"/>
-      <rect x="44" y="60" width="4"  height="60" fill="#0077ff" opacity="0.5"/>
-      <rect x="132" y="60" width="4" height="60" fill="#0077ff" opacity="0.5"/>
-      <!-- Ring 2 -->
-      <rect x="60" y="64" width="60" height="4"  fill="#00c8ff" opacity="0.5"/>
-      <rect x="60" y="112" width="60" height="4" fill="#00c8ff" opacity="0.5"/>
-      <rect x="56" y="68" width="4"  height="44" fill="#00c8ff" opacity="0.5"/>
-      <rect x="120" y="68" width="4" height="44" fill="#00c8ff" opacity="0.5"/>
-      <!-- Crosshair center -->
-      <rect x="68" y="88" width="44" height="4"  fill="#00ff9d" opacity="0.6"/>
-      <rect x="88" y="68" width="4"  height="44" fill="#00ff9d" opacity="0.6"/>
-      <!-- Center dot -->
-      <rect x="84" y="84" width="12" height="12" fill="#00ff9d" opacity="0.9"/>
-      <rect x="86" y="86" width="8"  height="8"  fill="#ffffff" opacity="0.6"/>
-
-      <!-- Glow overlay -->
-      <rect x="32" y="40" width="116" height="100" fill="url(#lensGlow)" opacity="0.3"/>
-
-      <defs>
-        <radialGradient id="lensGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stop-color="#00c8ff" stop-opacity="0.6"/>
-          <stop offset="60%"  stop-color="#0077ff" stop-opacity="0.2"/>
-          <stop offset="100%" stop-color="#0077ff" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
+<!-- ── Nav ──────────────────────────────────────────────────────── -->
+<nav>
+  <a class="nav-brand" href="/">
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+      <rect width="30" height="30" rx="5" fill="#1A1510"/>
+      <!-- pixel raccoon face mark -->
+      <rect x="6" y="9" width="18" height="15" rx="3" fill="#9A8878"/>
+      <rect x="5" y="14" width="20" height="6" fill="#241810"/>
+      <rect x="7" y="15" width="6" height="4" rx="1" fill="#F0EBE0"/>
+      <rect x="9" y="16" width="3" height="3" rx="1" fill="#1A1210"/>
+      <rect x="17" y="15" width="6" height="4" rx="1" fill="#F0EBE0"/>
+      <rect x="19" y="16" width="3" height="3" rx="1" fill="#1A1210"/>
+      <rect x="5" y="6" width="7" height="7" rx="1" fill="#6A5848"/>
+      <rect x="7" y="8" width="4" height="5" rx="1" fill="#C89090"/>
+      <rect x="18" y="6" width="7" height="7" rx="1" fill="#6A5848"/>
+      <rect x="19" y="8" width="4" height="5" rx="1" fill="#C89090"/>
+      <rect x="11" y="19" width="8" height="5" rx="1" fill="#C4BCB2"/>
+      <rect x="13" y="20" width="4" height="3" rx="1" fill="#2C1A10"/>
     </svg>
-    <div class="lens-scan"></div>
-  </div>
+    <div>
+      <div class="nav-wordmark">BANDIT</div>
+      <div class="nav-sub">vendor risk intelligence</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#crew">The Crew</a></li>
+    <li><a href="https://github.com/conorrusso/privacy-risk-analyzer" target="_blank" rel="noopener">GitHub</a></li>
+    <li><a href="https://github.com/conorrusso/privacy-risk-analyzer/blob/main/README.md" target="_blank" rel="noopener">Docs</a></li>
+  </ul>
+  <a class="nav-cta" href="https://github.com/conorrusso/privacy-risk-analyzer" target="_blank" rel="noopener">DEPLOY THE CREW ↗</a>
+</nav>
 
-  <h1 class="hero-title">THE PRIVACY LENS</h1>
-  <p class="hero-sub">AI-Powered Vendor Privacy &amp; Contract Risk Analyzer<br><span>// open source · n8n · claude api · gotenberg · ai-agnostic</span></p>
-
-  <div class="badge-row">
-    <span class="badge badge-blue">v0.1.0</span>
-    <span class="badge badge-green">MIT LICENSE</span>
-    <span class="badge badge-purple">OPEN SOURCE</span>
-    <span class="badge badge-yellow">8 DIMENSIONS</span>
-    <span class="badge badge-blue">n8n WORKFLOW</span>
-    <span class="badge badge-purple">GOTENBERG PDF</span>
-    <span class="badge badge-green">GDPR · CCPA · EU AI ACT</span>
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<section class="hero" aria-label="Hero">
+  <div class="hero-text">
+    <div class="eyebrow">OPEN SOURCE · n8n · AI-POWERED</div>
+    <p class="punchline">YOUR VENDORS ARE HOPING YOU DON'T READ THE FINE PRINT.</p>
+    <h1 class="hero-title">BANDIT</h1>
+    <p class="hero-tag">Vendor Risk Intelligence Suite</p>
+    <p class="hero-desc">A crew of AI auditors that rummage through privacy policies, contracts and compliance docs across your entire vendor portfolio. Automated. Overnight. Straight to your Google Drive.</p>
+    <div class="hero-btns">
+      <a class="btn-primary" href="https://github.com/conorrusso/privacy-risk-analyzer" target="_blank" rel="noopener">DEPLOY THE CREW</a>
+      <a class="btn-ghost" href="https://github.com/conorrusso/privacy-risk-analyzer" target="_blank" rel="noopener">VIEW ON GITHUB</a>
+    </div>
   </div>
+</section>
+
+<!-- ── Rooftop scene — full bleed ────────────────────────────────── -->
+<div class="scene-section" aria-hidden="true">
+  <svg viewBox="0 0 1400 520" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax slice">
+    <!-- Night sky -->
+    <rect x="0" y="0" width="1400" height="520" fill="#201808"/>
+    <rect x="0" y="0" width="1400" height="160" fill="#18100A"/>
+    <!-- Stars scattered wide -->
+    <rect x="40"  y="20" width="5" height="5" fill="#F8ECC0" opacity=".8"/>
+    <rect x="130" y="12" width="4" height="4" fill="#F8ECC0" opacity=".7"/>
+    <rect x="230" y="28" width="5" height="5" fill="#F8ECC0" opacity=".85"/>
+    <rect x="360" y="10" width="4" height="4" fill="#F8ECC0" opacity=".6"/>
+    <rect x="480" y="22" width="6" height="6" fill="#F8ECC0" opacity=".9"/>
+    <rect x="600" y="8"  width="4" height="4" fill="#F8ECC0" opacity=".7"/>
+    <rect x="700" y="30" width="4" height="4" fill="#F8ECC0" opacity=".5"/>
+    <rect x="820" y="15" width="5" height="5" fill="#F8ECC0" opacity=".8"/>
+    <rect x="940" y="6"  width="4" height="4" fill="#F8ECC0" opacity=".7"/>
+    <rect x="1060" y="24" width="4" height="4" fill="#F8ECC0" opacity=".6"/>
+    <rect x="1180" y="14" width="5" height="5" fill="#F8ECC0" opacity=".85"/>
+    <rect x="1300" y="8"  width="4" height="4" fill="#F8ECC0" opacity=".7"/>
+    <rect x="1360" y="28" width="4" height="4" fill="#F8ECC0" opacity=".6"/>
+    <rect x="80"  y="48" width="4" height="4" fill="#F8ECC0" opacity=".5"/>
+    <rect x="280" y="52" width="4" height="4" fill="#F8ECC0" opacity=".55"/>
+    <rect x="540" y="42" width="4" height="4" fill="#F8ECC0" opacity=".4"/>
+    <rect x="760" y="58" width="4" height="4" fill="#F8ECC0" opacity=".5"/>
+    <rect x="1000" y="44" width="4" height="4" fill="#F8ECC0" opacity=".55"/>
+    <rect x="1240" y="50" width="4" height="4" fill="#F8ECC0" opacity=".4"/>
+    <!-- Moon -->
+    <rect x="1060" y="36" width="60" height="10" fill="#FAE8B8"/>
+    <rect x="1048" y="46" width="84" height="10" fill="#FAE8B8"/>
+    <rect x="1040" y="56" width="100" height="28" fill="#FAE8B8"/>
+    <rect x="1048" y="84" width="84" height="10" fill="#FAE8B8"/>
+    <rect x="1060" y="94" width="60" height="10" fill="#FAE8B8"/>
+    <rect x="1064" y="58" width="16" height="10" rx="2" fill="#E8C488" opacity=".5"/>
+    <rect x="1090" y="74" width="14" height="9"  rx="2" fill="#E8C488" opacity=".4"/>
+    <!-- Buildings left -->
+    <rect x="0"   y="160" width="70"  height="360" fill="#18100A"/>
+    <rect x="12"  y="178" width="12" height="12"  fill="#D4A030" opacity=".4"/>
+    <rect x="36"  y="178" width="12" height="12"  fill="#D4A030" opacity=".7"/>
+    <rect x="12"  y="204" width="12" height="12"  fill="#D4A030" opacity=".2"/>
+    <rect x="36"  y="204" width="12" height="12"  fill="#D4A030" opacity=".5"/>
+    <rect x="78"  y="190" width="58"  height="330" fill="#1C140A"/>
+    <rect x="90"  y="208" width="10" height="10"  fill="#C89828" opacity=".55"/>
+    <rect x="114" y="208" width="10" height="10"  fill="#C89828" opacity=".8"/>
+    <rect x="144" y="134" width="90"  height="386" fill="#18100A"/>
+    <rect x="156" y="152" width="12" height="12"  fill="#D4A828" opacity=".65"/>
+    <rect x="182" y="152" width="12" height="12"  fill="#D4A828" opacity=".9"/>
+    <rect x="208" y="152" width="12" height="12"  fill="#D4A828" opacity=".35"/>
+    <rect x="156" y="178" width="12" height="12"  fill="#D4A828" opacity=".4"/>
+    <rect x="182" y="178" width="12" height="12"  fill="#D4A828" opacity=".65"/>
+    <!-- Neon sign -->
+    <rect x="148" y="202" width="80" height="16" rx="1" fill="#8A1818"/>
+    <rect x="152" y="206" width="72" height="10" rx="1" fill="#E02828" opacity=".85"/>
+    <!-- Water tower -->
+    <rect x="248" y="144" width="68"  height="44" rx="3" fill="#2A1A0A"/>
+    <rect x="242" y="186" width="80"  height="7"       fill="#221408"/>
+    <rect x="258" y="193" width="14"  height="64"       fill="#221408"/>
+    <rect x="298" y="193" width="14"  height="64"       fill="#221408"/>
+    <rect x="248" y="255" width="68"  height="6"        fill="#1A1006"/>
+    <!-- Buildings right -->
+    <rect x="1180" y="170" width="80"  height="350" fill="#18100A"/>
+    <rect x="1196" y="186" width="10" height="10"  fill="#C89828" opacity=".55"/>
+    <rect x="1220" y="186" width="10" height="10"  fill="#C89828" opacity=".85"/>
+    <rect x="1244" y="186" width="10" height="10"  fill="#C89828" opacity=".35"/>
+    <rect x="1270" y="160" width="70"  height="360" fill="#1A1208"/>
+    <rect x="1282" y="176" width="10" height="10"  fill="#D4A828" opacity=".6"/>
+    <rect x="1306" y="176" width="10" height="10"  fill="#D4A828" opacity=".4"/>
+    <rect x="1330" y="164" width="70"  height="356" fill="#18100A"/>
+    <rect x="1342" y="180" width="10" height="10"  fill="#C89828" opacity=".7"/>
+    <rect x="1366" y="180" width="10" height="10"  fill="#C89828" opacity=".4"/>
+    <!-- Rooftop full width -->
+    <rect x="0"   y="370" width="1400" height="150" fill="#362414"/>
+    <rect x="0"   y="358" width="1400" height="14"  fill="#4A3420"/>
+    <rect x="0"   y="348" width="1400" height="12"  fill="#5A4028"/>
+    <rect x="0"   y="340" width="1400" height="10"  fill="#6A5030"/>
+    <!-- AC units -->
+    <rect x="30"  y="314" width="48" height="30" rx="1" fill="#4A3420"/>
+    <rect x="36"  y="310" width="36" height="8"  rx="1" fill="#3A2818"/>
+    <rect x="30"  y="326" width="48" height="4"        fill="#3A2818"/>
+    <rect x="900" y="310" width="48" height="30" rx="1" fill="#4A3420"/>
+    <rect x="906" y="306" width="36" height="8"  rx="1" fill="#3A2818"/>
+    <!-- Antenna -->
+    <rect x="1100" y="262" width="5" height="90"  fill="#3A2818"/>
+    <rect x="1082" y="262" width="40" height="4"  fill="#3A2818"/>
+    <rect x="1082" y="256" width="5" height="14"  fill="#3A2818"/>
+    <!-- Vent -->
+    <rect x="1260" y="296" width="14" height="68" fill="#3A2818"/>
+    <rect x="1254" y="290" width="26" height="10" rx="1" fill="#4A3020"/>
+    <!-- Rooftop windows / building face -->
+    <rect x="80"  y="370" width="22" height="26" rx="1" fill="#D4A030" opacity=".3"/>
+    <rect x="130" y="370" width="22" height="26" rx="1" fill="#D4A030" opacity=".65"/>
+    <rect x="180" y="370" width="22" height="26" rx="1" fill="#D4A030" opacity=".45"/>
+    <rect x="1100" y="370" width="22" height="26" rx="1" fill="#D4A030" opacity=".5"/>
+    <rect x="1150" y="370" width="22" height="26" rx="1" fill="#D4A030" opacity=".25"/>
+    <!-- Floating docs - spread wide -->
+    <g transform="translate(120,196) rotate(-13)">
+      <rect width="46" height="60" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+      <rect x="0" y="0" width="46" height="12" rx="1" fill="#1871D0" opacity=".85"/>
+      <rect x="6" y="18" width="34" height="3" fill="#C0B8A0"/>
+      <rect x="6" y="25" width="28" height="3" fill="#C0B8A0"/>
+      <rect x="6" y="32" width="32" height="3" fill="#C0B8A0"/>
+      <rect x="6" y="39" width="22" height="3" fill="#C0B8A0"/>
+    </g>
+    <g transform="translate(280,160) rotate(8)">
+      <rect width="54" height="70" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+      <rect x="0" y="0" width="54" height="13" rx="1" fill="#4A154B" opacity=".85"/>
+      <rect x="7" y="20" width="40" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="27" width="32" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="34" width="38" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="41" width="28" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="48" width="34" height="3" fill="#C0B8A0"/>
+    </g>
+    <g transform="translate(470,210) rotate(-18)">
+      <rect width="42" height="54" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+      <rect x="0" y="0" width="42" height="11" rx="1" fill="#2DB750" opacity=".85"/>
+      <rect x="6" y="17" width="30" height="3" fill="#C0B8A0"/>
+      <rect x="6" y="24" width="24" height="3" fill="#C0B8A0"/>
+      <rect x="6" y="31" width="28" height="3" fill="#C0B8A0"/>
+    </g>
+    <g transform="translate(660,144) rotate(6)">
+      <rect width="50" height="64" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+      <rect x="0" y="0" width="50" height="12" rx="1" fill="#2281FF" opacity=".85"/>
+      <rect x="7" y="18" width="36" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="25" width="30" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="32" width="34" height="3" fill="#C0B8A0"/>
+      <rect x="7" y="39" width="24" height="3" fill="#C0B8A0"/>
+    </g>
+    <!-- Raccoon — centered in wide viewbox -->
+    <!-- Tail -->
+    <rect x="906" y="294" width="40" height="14" rx="3" fill="#5C4838"/>
+    <rect x="938" y="274" width="14" height="34" rx="3" fill="#9A8878"/>
+    <rect x="922" y="260" width="36" height="14" rx="3" fill="#5C4838"/>
+    <rect x="922" y="244" width="14" height="20" rx="3" fill="#9A8878"/>
+    <rect x="914" y="232" width="24" height="16" rx="3" fill="#5C4838"/>
+    <rect x="915" y="220" width="22" height="16" rx="3" fill="#E0D8CC"/>
+    <!-- Body -->
+    <rect x="786" y="282" width="126" height="90" rx="6" fill="#8A7E74"/>
+    <rect x="808" y="292" width="84" height="76" rx="5" fill="#9E9288"/>
+    <!-- Haunches -->
+    <rect x="770" y="314" width="26" height="56" rx="5" fill="#7A6E64"/>
+    <rect x="902" y="310" width="26" height="60" rx="5" fill="#7A6E64"/>
+    <!-- Left arm with mag glass -->
+    <rect x="694" y="304" width="78" height="18" rx="5" fill="#8A7E74"/>
+    <rect x="676" y="294" width="26" height="28" rx="5" fill="#9A8878"/>
+    <!-- Right arm resting -->
+    <rect x="906" y="330" width="16" height="40" rx="4" fill="#8A7E74"/>
+    <rect x="894" y="366" width="36" height="18" rx="4" fill="#9A8878"/>
+    <!-- Neck -->
+    <rect x="814" y="264" width="62" height="24" rx="4" fill="#9A8878"/>
+    <!-- Collar -->
+    <rect x="800" y="274" width="88" height="12" rx="3" fill="#8B5A2B"/>
+    <rect x="830" y="282" width="28" height="16" rx="3" fill="#C8901C"/>
+    <!-- Head -->
+    <rect x="788" y="188" width="116" height="82" rx="10" fill="#9A8878"/>
+    <!-- Ears -->
+    <rect x="790" y="170" width="28" height="26" rx="3" fill="#6A5848"/>
+    <rect x="796" y="176" width="18" height="18" rx="2" fill="#9A8878"/>
+    <rect x="798" y="178" width="14" height="14" rx="2" fill="#D4A498"/>
+    <rect x="872" y="166" width="28" height="26" rx="3" fill="#6A5848"/>
+    <rect x="876" y="172" width="18" height="18" rx="2" fill="#9A8878"/>
+    <rect x="878" y="174" width="14" height="14" rx="2" fill="#D4A498"/>
+    <!-- Mask -->
+    <rect x="788" y="210" width="116" height="30" rx="4" fill="#221610"/>
+    <!-- Eyes -->
+    <rect x="798" y="214" width="26" height="20" rx="3" fill="#F0EBE0"/>
+    <rect x="804" y="218" width="14" height="14" rx="3" fill="#1A1210"/>
+    <rect x="805" y="219" width="6"  height="6"  fill="#F0EBE0"/>
+    <rect x="866" y="214" width="26" height="20" rx="3" fill="#F0EBE0"/>
+    <rect x="872" y="218" width="14" height="14" rx="3" fill="#1A1210"/>
+    <rect x="873" y="219" width="6"  height="6"  fill="#F0EBE0"/>
+    <!-- Chin -->
+    <rect x="800" y="240" width="90" height="32" rx="5" fill="#C4BCB2"/>
+    <!-- Nose -->
+    <rect x="836" y="244" width="18" height="12" rx="3" fill="#2A1810"/>
+    <!-- Mouth -->
+    <rect x="820" y="260" width="10" height="4"  fill="#2A1810"/>
+    <rect x="858" y="260" width="10" height="4"  fill="#2A1810"/>
+    <!-- Mag glass frame -->
+    <rect x="574" y="248" width="74" height="10" rx="2" fill="#9A6A28"/>
+    <rect x="574" y="332" width="74" height="10" rx="2" fill="#9A6A28"/>
+    <rect x="564" y="258" width="10" height="74" rx="2" fill="#9A6A28"/>
+    <rect x="638" y="258" width="10" height="74" rx="2" fill="#9A6A28"/>
+    <rect x="574" y="258" width="10" height="10" fill="#9A6A28"/>
+    <rect x="628" y="258" width="10" height="10" fill="#9A6A28"/>
+    <rect x="574" y="322" width="10" height="10" fill="#9A6A28"/>
+    <rect x="628" y="322" width="10" height="10" fill="#9A6A28"/>
+    <!-- Lens -->
+    <rect x="574" y="258" width="64" height="74" fill="#EDE8D4" opacity=".38"/>
+    <rect x="588" y="270" width="28" height="7"  rx="1" fill="#FFF" opacity=".38"/>
+    <rect x="582" y="278" width="10" height="10" rx="1" fill="#FFF" opacity=".22"/>
+    <!-- Handle -->
+    <rect x="648" y="318" width="60" height="14" rx="5" fill="#9A6A28"/>
+    <rect x="700" y="323" width="22" height="9"  rx="3" fill="#7A5018"/>
+  </svg>
+</div>
+      <!-- Night sky -->
+      <rect x="0" y="0" width="520" height="520" fill="#201808"/>
+      <rect x="0" y="0" width="520" height="140" fill="#18100A"/>
+      <!-- Stars -->
+      <rect x="28" y="16" width="4" height="4" fill="#F8ECC0" opacity=".85"/>
+      <rect x="88" y="8" width="4" height="4" fill="#F8ECC0" opacity=".7"/>
+      <rect x="148" y="22" width="4" height="4" fill="#F8ECC0" opacity=".8"/>
+      <rect x="218" y="10" width="6" height="6" fill="#F8ECC0" opacity=".9"/>
+      <rect x="298" y="18" width="4" height="4" fill="#F8ECC0" opacity=".6"/>
+      <rect x="368" y="7" width="4" height="4" fill="#F8ECC0" opacity=".8"/>
+      <rect x="428" y="28" width="4" height="4" fill="#F8ECC0" opacity=".7"/>
+      <rect x="58" y="40" width="4" height="4" fill="#F8ECC0" opacity=".5"/>
+      <rect x="180" y="48" width="4" height="4" fill="#F8ECC0" opacity=".6"/>
+      <rect x="340" y="36" width="4" height="4" fill="#F8ECC0" opacity=".8"/>
+      <rect x="480" y="14" width="4" height="4" fill="#F8ECC0" opacity=".5"/>
+      <rect x="500" y="42" width="4" height="4" fill="#F8ECC0" opacity=".6"/>
+      <!-- Moon -->
+      <rect x="340" y="36" width="52" height="8" fill="#FAE8B8"/>
+      <rect x="332" y="44" width="68" height="8" fill="#FAE8B8"/>
+      <rect x="328" y="52" width="76" height="24" fill="#FAE8B8"/>
+      <rect x="332" y="76" width="68" height="8" fill="#FAE8B8"/>
+      <rect x="340" y="84" width="52" height="8" fill="#FAE8B8"/>
+      <rect x="344" y="52" width="12" height="8" rx="2" fill="#E8C488" opacity=".5"/>
+      <rect x="364" y="68" width="10" height="7" rx="2" fill="#E8C488" opacity=".4"/>
+      <!-- Buildings bg left -->
+      <rect x="0" y="160" width="52" height="360" fill="#18100A"/>
+      <rect x="8" y="176" width="10" height="10" fill="#D4A030" opacity=".35"/>
+      <rect x="26" y="176" width="10" height="10" fill="#D4A030" opacity=".65"/>
+      <rect x="8" y="198" width="10" height="10" fill="#D4A030" opacity=".2"/>
+      <rect x="26" y="198" width="10" height="10" fill="#D4A030" opacity=".5"/>
+      <rect x="56" y="196" width="44" height="324" fill="#1C140A"/>
+      <rect x="64" y="212" width="8" height="8" fill="#C89828" opacity=".5"/>
+      <rect x="80" y="212" width="8" height="8" fill="#C89828" opacity=".75"/>
+      <rect x="104" y="138" width="70" height="382" fill="#18100A"/>
+      <rect x="114" y="154" width="10" height="10" fill="#D4A828" opacity=".6"/>
+      <rect x="134" y="154" width="10" height="10" fill="#D4A828" opacity=".85"/>
+      <rect x="154" y="154" width="10" height="10" fill="#D4A828" opacity=".3"/>
+      <rect x="114" y="176" width="10" height="10" fill="#D4A828" opacity=".4"/>
+      <rect x="134" y="176" width="10" height="10" fill="#D4A828" opacity=".65"/>
+      <!-- Neon sign -->
+      <rect x="110" y="200" width="60" height="14" rx="1" fill="#8A1818"/>
+      <rect x="113" y="203" width="54" height="8" rx="1" fill="#E02828" opacity=".8"/>
+      <!-- Water tower -->
+      <rect x="178" y="146" width="52" height="36" rx="3" fill="#2A1A0A"/>
+      <rect x="174" y="180" width="60" height="6" fill="#221408"/>
+      <rect x="186" y="186" width="10" height="52" fill="#221408"/>
+      <rect x="216" y="186" width="10" height="52" fill="#221408"/>
+      <rect x="178" y="236" width="52" height="5" fill="#1A1006"/>
+      <!-- Building bg right -->
+      <rect x="420" y="176" width="100" height="344" fill="#18100A"/>
+      <rect x="432" y="190" width="8" height="8" fill="#C89828" opacity=".5"/>
+      <rect x="452" y="190" width="8" height="8" fill="#C89828" opacity=".8"/>
+      <rect x="472" y="190" width="8" height="8" fill="#C89828" opacity=".3"/>
+      <rect x="492" y="190" width="8" height="8" fill="#C89828" opacity=".6"/>
+      <!-- Rooftop -->
+      <rect x="0" y="370" width="520" height="150" fill="#362414"/>
+      <rect x="0" y="358" width="520" height="14" fill="#4A3420"/>
+      <rect x="0" y="350" width="520" height="10" fill="#5A4028"/>
+      <rect x="0" y="344" width="520" height="8" fill="#6A5030"/>
+      <!-- AC unit -->
+      <rect x="20" y="318" width="40" height="28" rx="1" fill="#4A3420"/>
+      <rect x="24" y="314" width="32" height="8" rx="1" fill="#3A2818"/>
+      <rect x="20" y="326" width="40" height="3" fill="#3A2818"/>
+      <!-- Antenna -->
+      <rect x="420" y="270" width="4" height="80" fill="#3A2818"/>
+      <rect x="408" y="270" width="28" height="3" fill="#3A2818"/>
+      <rect x="408" y="266" width="4" height="12" fill="#3A2818"/>
+      <!-- Vent -->
+      <rect x="460" y="300" width="10" height="56" fill="#3A2818"/>
+      <rect x="456" y="296" width="18" height="8" rx="1" fill="#4A3020"/>
+      <!-- Floating docs -->
+      <g transform="translate(38,196) rotate(-13)">
+        <rect width="38" height="50" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+        <rect x="0" y="0" width="38" height="10" rx="1" fill="#1871D0" opacity=".85"/>
+        <rect x="5" y="15" width="28" height="3" fill="#C0B8A0"/>
+        <rect x="5" y="22" width="22" height="3" fill="#C0B8A0"/>
+        <rect x="5" y="29" width="26" height="3" fill="#C0B8A0"/>
+        <rect x="5" y="36" width="18" height="3" fill="#C0B8A0"/>
+      </g>
+      <g transform="translate(106,166) rotate(8)">
+        <rect width="46" height="60" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+        <rect x="0" y="0" width="46" height="11" rx="1" fill="#4A154B" opacity=".85"/>
+        <rect x="6" y="17" width="34" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="24" width="28" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="31" width="32" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="38" width="24" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="45" width="30" height="3" fill="#C0B8A0"/>
+      </g>
+      <g transform="translate(182,212) rotate(-20)">
+        <rect width="34" height="46" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+        <rect x="0" y="0" width="34" height="9" rx="1" fill="#2DB750" opacity=".85"/>
+        <rect x="5" y="14" width="24" height="3" fill="#C0B8A0"/>
+        <rect x="5" y="21" width="20" height="3" fill="#C0B8A0"/>
+        <rect x="5" y="28" width="22" height="3" fill="#C0B8A0"/>
+      </g>
+      <g transform="translate(264,134) rotate(6)">
+        <rect width="42" height="54" rx="1" fill="#F4EFE0" stroke="#C8BBA0" stroke-width="1.5"/>
+        <rect x="0" y="0" width="42" height="10" rx="1" fill="#2281FF" opacity=".85"/>
+        <rect x="6" y="16" width="30" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="23" width="26" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="30" width="28" height="3" fill="#C0B8A0"/>
+        <rect x="6" y="37" width="20" height="3" fill="#C0B8A0"/>
+      </g>
+      <!-- Raccoon tail -->
+      <rect x="406" y="294" width="34" height="12" rx="3" fill="#5C4838"/>
+      <rect x="432" y="276" width="12" height="30" rx="3" fill="#9A8878"/>
+      <rect x="418" y="262" width="30" height="12" rx="3" fill="#5C4838"/>
+      <rect x="418" y="248" width="12" height="18" rx="3" fill="#9A8878"/>
+      <rect x="412" y="238" width="20" height="14" rx="3" fill="#5C4838"/>
+      <rect x="413" y="228" width="18" height="14" rx="3" fill="#E0D8CC"/>
+      <!-- Raccoon body -->
+      <rect x="300" y="286" width="108" height="78" rx="5" fill="#8A7E74"/>
+      <rect x="318" y="294" width="72" height="66" rx="4" fill="#9E9288"/>
+      <rect x="286" y="316" width="22" height="46" rx="4" fill="#7A6E64"/>
+      <rect x="400" y="312" width="22" height="50" rx="4" fill="#7A6E64"/>
+      <rect x="236" y="308" width="66" height="16" rx="4" fill="#8A7E74"/>
+      <rect x="220" y="300" width="22" height="24" rx="4" fill="#9A8878"/>
+      <rect x="406" y="328" width="14" height="34" rx="3" fill="#8A7E74"/>
+      <rect x="396" y="358" width="30" height="16" rx="3" fill="#9A8878"/>
+      <!-- Neck & collar -->
+      <rect x="326" y="270" width="52" height="20" rx="3" fill="#9A8878"/>
+      <rect x="316" y="280" width="72" height="10" rx="2" fill="#8B5A2B"/>
+      <rect x="342" y="286" width="20" height="14" rx="2" fill="#C8901C"/>
+      <!-- Head -->
+      <rect x="300" y="200" width="104" height="76" rx="9" fill="#9A8878"/>
+      <!-- Ears -->
+      <rect x="302" y="184" width="24" height="22" rx="2" fill="#6A5848"/>
+      <rect x="306" y="188" width="16" height="16" rx="1" fill="#9A8878"/>
+      <rect x="308" y="190" width="12" height="12" rx="1" fill="#D4A498"/>
+      <rect x="378" y="180" width="24" height="22" rx="2" fill="#6A5848"/>
+      <rect x="381" y="184" width="16" height="16" rx="1" fill="#9A8878"/>
+      <rect x="383" y="186" width="12" height="12" rx="1" fill="#D4A498"/>
+      <!-- Mask -->
+      <rect x="300" y="220" width="104" height="26" rx="3" fill="#221610"/>
+      <!-- Eyes -->
+      <rect x="310" y="223" width="22" height="17" rx="2" fill="#F0EBE0"/>
+      <rect x="315" y="226" width="12" height="12" rx="2" fill="#1A1210"/>
+      <rect x="316" y="227" width="5" height="5" fill="#F0EBE0"/>
+      <rect x="372" y="223" width="22" height="17" rx="2" fill="#F0EBE0"/>
+      <rect x="377" y="226" width="12" height="12" rx="2" fill="#1A1210"/>
+      <rect x="378" y="227" width="5" height="5" fill="#F0EBE0"/>
+      <!-- Chin & face -->
+      <rect x="314" y="246" width="76" height="28" rx="4" fill="#C4BCB2"/>
+      <rect x="344" y="250" width="16" height="10" rx="2" fill="#2A1810"/>
+      <rect x="332" y="265" width="8" height="3" fill="#2A1810"/>
+      <rect x="362" y="265" width="8" height="3" fill="#2A1810"/>
+      <!-- Magnifying glass -->
+      <rect x="144" y="252" width="60" height="8" rx="1" fill="#9A6A28"/>
+      <rect x="144" y="324" width="60" height="8" rx="1" fill="#9A6A28"/>
+      <rect x="136" y="260" width="8" height="64" rx="1" fill="#9A6A28"/>
+      <rect x="204" y="260" width="8" height="64" rx="1" fill="#9A6A28"/>
+      <rect x="144" y="260" width="8" height="8" fill="#9A6A28"/>
+      <rect x="196" y="260" width="8" height="8" fill="#9A6A28"/>
+      <rect x="144" y="316" width="8" height="8" fill="#9A6A28"/>
+      <rect x="196" y="316" width="8" height="8" fill="#9A6A28"/>
+      <rect x="144" y="260" width="60" height="64" fill="#EDE8D4" opacity=".38"/>
+      <rect x="156" y="270" width="22" height="6" rx="1" fill="#FFF" opacity=".38"/>
+      <rect x="152" y="276" width="8" height="8" rx="1" fill="#FFF" opacity=".22"/>
+      <rect x="210" y="318" width="50" height="12" rx="4" fill="#9A6A28"/>
+<!-- ── Problem strip ─────────────────────────────────────────────── -->
+<section class="strip" aria-labelledby="problem-heading">
+  <div class="section-label">YOU ALREADY KNOW THIS PART</div>
+  <h2 class="section-h2" id="problem-heading">Your GRC program runs on manual reviews nobody finished.</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">📋 HUNDREDS OF VENDORS</div>
+      <p class="card-desc">No team has time to read every privacy policy, DPA and MSA. So they don't. That's the problem Bandit solves.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🕳️ HIDDEN RISK</div>
+      <p class="card-desc">AI training clauses, missing breach timelines, silent sub-processors — buried in plain sight. Bandit finds them.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 POLICIES CHANGE QUIETLY</div>
+      <p class="card-desc">Vendors update terms without telling you. Without a system, you find out when it's already too late.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Crew ──────────────────────────────────────────────────────── -->
+<section class="crew" id="crew" aria-labelledby="crew-heading">
+  <div class="section-label">MEET THE CREW</div>
+  <h2 class="section-h2" id="crew-heading">Each Bandit specialises in a different kind of heist.</h2>
+  <p style="font-size:13px;color:var(--muted);text-align:center;font-family:system-ui,sans-serif;margin-bottom:32px;">Modular n8n workflows. Use one or run the whole crew overnight.</p>
+  <div class="crew-grid">
+
+    <!-- Privacy Bandit -->
+    <div class="crew-card live">
+      <svg class="crew-avatar" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="16" y="14" width="32" height="26" rx="5" fill="#9A8878"/>
+        <rect x="10" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="13" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="40" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="43" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="16" y="20" width="32" height="12" fill="#241810"/>
+        <rect x="19" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="22" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="34" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="37" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="20" y="32" width="24" height="10" rx="2" fill="#C4BCB2"/>
+        <rect x="28" y="34" width="8" height="5" rx="1" fill="#2C1A10"/>
+        <rect x="16" y="38" width="32" height="6" rx="1" fill="#8B5A2B"/>
+        <rect x="26" y="43" width="12" height="11" rx="1" fill="#C8901C"/>
+        <circle cx="26" cy="57" r="8" fill="none" stroke="#8B5A2B" stroke-width="2.5"/>
+        <line x1="32" y1="63" x2="38" y2="70" stroke="#8B5A2B" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div class="crew-code">PRIVACY</div>
+      <div class="crew-role">Policy Scout</div>
+      <p class="crew-desc">Privacy policy scoring across 8 GDPR/CCPA dimensions</p>
+      <span class="badge badge-live">LIVE</span>
+    </div>
+
+    <!-- Legal Bandit -->
+    <div class="crew-card dim">
+      <svg class="crew-avatar" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="16" y="14" width="32" height="26" rx="5" fill="#9A8878"/>
+        <rect x="10" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="13" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="40" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="43" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="16" y="20" width="32" height="12" fill="#241810"/>
+        <rect x="19" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="22" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="34" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="37" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="20" y="32" width="24" height="10" rx="2" fill="#C4BCB2"/>
+        <rect x="16" y="38" width="32" height="6" rx="1" fill="#534AB7"/>
+        <rect x="28" y="46" width="4" height="16" rx="1" fill="#534AB7"/>
+        <rect x="20" y="48" width="24" height="3" rx="1" fill="#534AB7"/>
+        <rect x="20" y="51" width="10" height="10" rx="1" fill="none" stroke="#534AB7" stroke-width="1.5"/>
+        <rect x="34" y="51" width="10" height="10" rx="1" fill="none" stroke="#534AB7" stroke-width="1.5"/>
+      </svg>
+      <div class="crew-code" style="color:#534AB7">LEGAL</div>
+      <div class="crew-role">Contract Cracker</div>
+      <p class="crew-desc">MSA and DPA risk clause detection</p>
+      <span class="badge badge-soon">COMING SOON</span>
+    </div>
+
+    <!-- AI Bandit -->
+    <div class="crew-card dim">
+      <svg class="crew-avatar" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="16" y="14" width="32" height="26" rx="5" fill="#9A8878"/>
+        <rect x="10" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="13" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="40" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="43" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="16" y="20" width="32" height="12" fill="#241810"/>
+        <rect x="19" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="22" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="34" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="37" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="20" y="32" width="24" height="10" rx="2" fill="#C4BCB2"/>
+        <rect x="16" y="38" width="32" height="6" rx="1" fill="#0F6E56"/>
+        <circle cx="22" cy="52" r="5" fill="none" stroke="#0F6E56" stroke-width="1.5"/>
+        <circle cx="42" cy="52" r="5" fill="none" stroke="#0F6E56" stroke-width="1.5"/>
+        <circle cx="32" cy="60" r="5" fill="none" stroke="#0F6E56" stroke-width="1.5"/>
+        <line x1="27" y1="52" x2="37" y2="52" stroke="#0F6E56" stroke-width="1.2"/>
+        <line x1="22" y1="57" x2="28" y2="58" stroke="#0F6E56" stroke-width="1.2"/>
+        <line x1="42" y1="57" x2="36" y2="58" stroke="#0F6E56" stroke-width="1.2"/>
+      </svg>
+      <div class="crew-code" style="color:#0F6E56">AI</div>
+      <div class="crew-role">Model Mole</div>
+      <p class="crew-desc">AI training risk and model usage terms</p>
+      <span class="badge badge-soon">COMING SOON</span>
+    </div>
+
+    <!-- Audit Bandit -->
+    <div class="crew-card dim">
+      <svg class="crew-avatar" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="16" y="14" width="32" height="26" rx="5" fill="#9A8878"/>
+        <rect x="10" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="13" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="40" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="43" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="16" y="20" width="32" height="12" fill="#241810"/>
+        <rect x="19" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="22" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="34" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="37" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="20" y="32" width="24" height="10" rx="2" fill="#C4BCB2"/>
+        <rect x="16" y="38" width="32" height="6" rx="1" fill="#185FA5"/>
+        <rect x="22" y="46" width="20" height="22" rx="1" fill="none" stroke="#185FA5" stroke-width="1.5"/>
+        <rect x="27" y="44" width="10" height="6" rx="1" fill="#185FA5"/>
+        <line x1="25" y1="55" x2="29" y2="60" stroke="#185FA5" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="29" y1="60" x2="39" y2="51" stroke="#185FA5" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div class="crew-code" style="color:#185FA5">AUDIT</div>
+      <div class="crew-role">SOC Stalker</div>
+      <p class="crew-desc">SOC 2 and ISO 27001 gap analysis</p>
+      <span class="badge badge-soon">COMING SOON</span>
+    </div>
+
+    <!-- Data Bandit -->
+    <div class="crew-card dim">
+      <svg class="crew-avatar" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="16" y="14" width="32" height="26" rx="5" fill="#9A8878"/>
+        <rect x="10" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="13" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="40" y="8" width="14" height="14" rx="2" fill="#6A5848"/>
+        <rect x="43" y="11" width="8" height="10" rx="1" fill="#D4A498"/>
+        <rect x="16" y="20" width="32" height="12" fill="#241810"/>
+        <rect x="19" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="22" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="34" y="22" width="11" height="8" rx="1" fill="#F0EBE0"/>
+        <rect x="37" y="24" width="6" height="5" rx="1" fill="#1A1210"/>
+        <rect x="20" y="32" width="24" height="10" rx="2" fill="#C4BCB2"/>
+        <rect x="16" y="38" width="32" height="6" rx="1" fill="#854F0B"/>
+        <rect x="20" y="48" width="7" height="16" rx="1" fill="#854F0B"/>
+        <rect x="29" y="44" width="7" height="20" rx="1" fill="#BA7517"/>
+        <rect x="38" y="40" width="7" height="24" rx="1" fill="#EF9F27"/>
+        <rect x="18" y="63" width="30" height="3" fill="#854F0B"/>
+      </svg>
+      <div class="crew-code" style="color:#854F0B">DATA</div>
+      <div class="crew-role">Flow Tracer</div>
+      <p class="crew-desc">Data flow mapping and transfer analysis</p>
+      <span class="badge badge-soon">COMING SOON</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Tagline ───────────────────────────────────────────────────── -->
+<section class="tagline-section">
+  <h2 class="tagline-h">Every vendor has something <span>to hide.</span></h2>
+  <p class="tagline-sub">Bandit finds it first.</p>
+  <div class="tagline-cta">
+    <a class="btn-primary" href="https://github.com/conorrusso/privacy-risk-analyzer" target="_blank" rel="noopener">GET STARTED ON GITHUB</a>
+  </div>
+</section>
+
+<!-- ── Cave footer scene ─────────────────────────────────────────── -->
+<div class="cave-scene" aria-hidden="true">
+  <svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <!-- Above ground -->
+    <rect x="0" y="0" width="1000" height="44" fill="#A8CC6A"/>
+    <rect x="0" y="38" width="1000" height="16" fill="#4A8018"/>
+    <rect x="0" y="50" width="1000" height="10" fill="#3A6C10"/>
+    <!-- Grass tufts -->
+    <rect x="80" y="36" width="8" height="18" rx="2" fill="#3A6C10"/>
+    <rect x="92" y="32" width="10" height="22" rx="2" fill="#2E5C0C"/>
+    <rect x="200" y="34" width="8" height="20" rx="2" fill="#3A6C10"/>
+    <rect x="340" y="36" width="10" height="16" rx="2" fill="#2E5C0C"/>
+    <rect x="500" y="32" width="8" height="22" rx="2" fill="#3A6C10"/>
+    <rect x="640" y="36" width="10" height="18" rx="2" fill="#2E5C0C"/>
+    <rect x="780" y="34" width="8" height="20" rx="2" fill="#3A6C10"/>
+    <rect x="900" y="36" width="10" height="16" rx="2" fill="#3A6C10"/>
+    <!-- Earth layers -->
+    <rect x="0" y="60" width="1000" height="18" fill="#8B6030"/>
+    <rect x="0" y="78" width="1000" height="14" fill="#7A5228"/>
+    <rect x="0" y="92" width="1000" height="12" fill="#6A4420"/>
+    <rect x="0" y="104" width="1000" height="12" fill="#5A3818"/>
+    <rect x="0" y="116" width="1000" height="10" fill="#4A2E12"/>
+    <rect x="0" y="126" width="1000" height="16" fill="#3A2410"/>
+    <!-- Cave interior -->
+    <rect x="0" y="142" width="1000" height="298" fill="#2E1C0C"/>
+    <!-- Cave walls -->
+    <rect x="0" y="148" width="58" height="292" fill="#3A2410"/>
+    <rect x="942" y="148" width="58" height="292" fill="#3A2410"/>
+    <!-- Stalactites -->
+    <rect x="87" y="126" width="4" height="40" rx="0 0 3 3" fill="#2A1808"/>
+    <rect x="173" y="126" width="5" height="34" rx="0 0 3 3" fill="#2A1808"/>
+    <rect x="292" y="126" width="4" height="38" rx="0 0 2 2" fill="#2A1808"/>
+    <rect x="463" y="126" width="6" height="40" rx="0 0 3 3" fill="#2A1808"/>
+    <rect x="662" y="126" width="4" height="32" rx="0 0 2 2" fill="#2A1808"/>
+    <rect x="803" y="126" width="6" height="44" rx="0 0 3 3" fill="#2A1808"/>
+    <rect x="902" y="126" width="4" height="28" rx="0 0 2 2" fill="#2A1808"/>
+    <!-- Cave floor -->
+    <rect x="0" y="390" width="1000" height="50" fill="#3A2410"/>
+    <rect x="0" y="384" width="1000" height="8" fill="#4A3018"/>
+    <!-- Rug -->
+    <rect x="260" y="385" width="480" height="14" rx="2" fill="#6A3018"/>
+    <rect x="264" y="388" width="472" height="8" rx="1" fill="#7A3C20"/>
+    <!-- Filing cabinet -->
+    <rect x="68" y="238" width="90" height="154" rx="2" fill="#6A4A1C"/>
+    <rect x="72" y="242" width="82" height="146" rx="1" fill="#7A5A2A"/>
+    <rect x="76" y="246" width="74" height="40" rx="1" fill="#4A3010"/>
+    <rect x="80" y="250" width="66" height="8" rx="1" fill="#1A5C2A"/>
+    <rect x="102" y="262" width="22" height="8" rx="2" fill="#8B6030"/>
+    <rect x="82" y="266" width="46" height="4" fill="#C8B898" opacity=".5"/>
+    <rect x="76" y="294" width="74" height="40" rx="1" fill="#4A3010"/>
+    <rect x="80" y="298" width="66" height="8" rx="1" fill="#7A4A0A"/>
+    <rect x="102" y="310" width="22" height="8" rx="2" fill="#8B6030"/>
+    <rect x="82" y="314" width="38" height="4" fill="#C8B898" opacity=".5"/>
+    <rect x="76" y="342" width="74" height="40" rx="1" fill="#4A3010"/>
+    <rect x="80" y="346" width="66" height="8" rx="1" fill="#7A1A1A"/>
+    <rect x="102" y="358" width="22" height="8" rx="2" fill="#8B6030"/>
+    <rect x="82" y="362" width="42" height="4" fill="#C8B898" opacity=".5"/>
+    <rect x="68" y="218" width="90" height="22" rx="2" fill="#5A3C10"/>
+    <!-- Hanging lamp -->
+    <rect x="497" y="126" width="6" height="52" fill="#2A1808"/>
+    <rect x="474" y="176" width="52" height="8" rx="2" fill="#8B6A28"/>
+    <rect x="470" y="184" width="60" height="28" rx="4" fill="#6A4E1C"/>
+    <rect x="481" y="202" width="38" height="22" rx="4" fill="#F0C840" opacity=".9"/>
+    <rect x="485" y="206" width="30" height="14" rx="2" fill="#FFF" opacity=".45"/>
+    <rect x="380" y="368" width="240" height="20" fill="#F0C840" opacity=".07"/>
+    <rect x="400" y="338" width="200" height="32" fill="#F0C840" opacity=".05"/>
+    <!-- HQ sign -->
+    <rect x="380" y="148" width="240" height="48" rx="3" fill="#3A2410"/>
+    <rect x="384" y="152" width="232" height="40" rx="2" fill="#4A3018"/>
+    <text x="500" y="179" text-anchor="middle" font-family="'Courier New',monospace" font-size="20" font-weight="700" fill="#C89A48" letter-spacing="4">BANDIT HQ</text>
+    <!-- Desk -->
+    <rect x="316" y="342" width="368" height="18" rx="2" fill="#7A5028"/>
+    <rect x="320" y="358" width="4" height="36" rx="1" fill="#6A4020"/>
+    <rect x="680" y="358" width="4" height="36" rx="1" fill="#6A4020"/>
+    <!-- Monitor -->
+    <rect x="408" y="262" width="148" height="82" rx="3" fill="#18100A"/>
+    <rect x="412" y="266" width="140" height="74" rx="2" fill="#0A3040"/>
+    <rect x="416" y="270" width="132" height="8" fill="#082838"/>
+    <rect x="418" y="282" width="64" height="5" rx="1" fill="#2CB84A" opacity=".9"/>
+    <rect x="418" y="291" width="42" height="5" rx="1" fill="#DD2828" opacity=".9"/>
+    <rect x="418" y="300" width="54" height="5" rx="1" fill="#2CB84A" opacity=".9"/>
+    <rect x="418" y="309" width="32" height="5" rx="1" fill="#E89820" opacity=".9"/>
+    <rect x="418" y="318" width="58" height="5" rx="1" fill="#2CB84A" opacity=".9"/>
+    <rect x="490" y="282" width="56" height="16" rx="2" fill="#DD2828" opacity=".8"/>
+    <rect x="473" y="344" width="20" height="8" rx="1" fill="#18100A"/>
+    <rect x="460" y="350" width="46" height="6" rx="1" fill="#18100A"/>
+    <!-- Keyboard -->
+    <rect x="360" y="344" width="88" height="10" rx="1" fill="#221810"/>
+    <rect x="363" y="346" width="82" height="6" rx="1" fill="#302418"/>
+    <!-- Papers -->
+    <rect x="322" y="330" width="40" height="54" rx="1" fill="#F4EFE0" opacity=".88"/>
+    <rect x="326" y="334" width="32" height="3" fill="#C0B898" opacity=".7"/>
+    <rect x="326" y="340" width="28" height="3" fill="#C0B898" opacity=".7"/>
+    <rect x="326" y="346" width="30" height="3" fill="#C0B898" opacity=".7"/>
+    <rect x="326" y="352" width="22" height="3" fill="#C0B898" opacity=".7"/>
+    <!-- Coffee mug -->
+    <rect x="636" y="316" width="28" height="32" rx="2" fill="#6A3820"/>
+    <rect x="640" y="320" width="20" height="24" rx="1" fill="#381808"/>
+    <rect x="662" y="322" width="8" height="4" rx="1" fill="#6A3820"/>
+    <rect x="662" y="334" width="8" height="4" rx="1" fill="#6A3820"/>
+    <rect x="644" y="308" width="4" height="8" rx="2" fill="#C8B898" opacity=".35"/>
+    <rect x="651" y="304" width="4" height="11" rx="2" fill="#C8B898" opacity=".28"/>
+    <!-- Raccoon at desk - chair -->
+    <rect x="440" y="306" width="120" height="90" rx="3" fill="#5A3818"/>
+    <rect x="446" y="310" width="108" height="82" rx="2" fill="#6A4828"/>
+    <rect x="428" y="380" width="144" height="22" rx="3" fill="#5A3818"/>
+    <rect x="434" y="400" width="8" height="28" rx="2" fill="#4A3018"/>
+    <rect x="558" y="400" width="8" height="28" rx="2" fill="#4A3018"/>
+    <rect x="440" y="420" width="120" height="6" rx="2" fill="#4A3018"/>
+    <!-- Raccoon body -->
+    <rect x="452" y="326" width="96" height="66" rx="5" fill="#8A7E74"/>
+    <rect x="466" y="334" width="68" height="54" rx="4" fill="#9E9288"/>
+    <rect x="428" y="352" width="26" height="20" rx="3" fill="#8A7E74"/>
+    <rect x="418" y="360" width="22" height="18" rx="3" fill="#9A8878"/>
+    <rect x="546" y="352" width="26" height="20" rx="3" fill="#8A7E74"/>
+    <rect x="554" y="360" width="22" height="18" rx="3" fill="#9A8878"/>
+    <rect x="472" y="313" width="56" height="18" rx="3" fill="#9A8878"/>
+    <rect x="462" y="320" width="76" height="10" rx="2" fill="#8B5A2B"/>
+    <rect x="488" y="326" width="24" height="14" rx="2" fill="#C8901C"/>
+    <!-- Raccoon head -->
+    <rect x="452" y="244" width="96" height="74" rx="9" fill="#9A8878"/>
+    <rect x="452" y="230" width="24" height="22" rx="2" fill="#6A5848"/>
+    <rect x="456" y="234" width="16" height="16" rx="1" fill="#9A8878"/>
+    <rect x="458" y="236" width="12" height="12" rx="1" fill="#D4A498"/>
+    <rect x="524" y="226" width="24" height="22" rx="2" fill="#6A5848"/>
+    <rect x="527" y="230" width="16" height="16" rx="1" fill="#9A8878"/>
+    <rect x="529" y="232" width="12" height="12" rx="1" fill="#D4A498"/>
+    <rect x="452" y="264" width="96" height="26" rx="3" fill="#221610"/>
+    <rect x="460" y="267" width="22" height="17" rx="2" fill="#F0EBE0"/>
+    <rect x="465" y="270" width="12" height="12" rx="2" fill="#1A1210"/>
+    <rect x="466" y="271" width="5" height="5" fill="#F0EBE0"/>
+    <rect x="518" y="267" width="22" height="17" rx="2" fill="#F0EBE0"/>
+    <rect x="523" y="270" width="12" height="12" rx="2" fill="#1A1210"/>
+    <rect x="524" y="271" width="5" height="5" fill="#F0EBE0"/>
+    <rect x="464" y="290" width="72" height="28" rx="4" fill="#C4BCB2"/>
+    <rect x="490" y="294" width="20" height="10" rx="2" fill="#2A1810"/>
+    <!-- Bookshelf -->
+    <rect x="832" y="196" width="130" height="196" rx="2" fill="#5A3A18"/>
+    <rect x="836" y="200" width="122" height="188" rx="1" fill="#3A2210"/>
+    <rect x="832" y="260" width="130" height="8" rx="1" fill="#5A3A18"/>
+    <rect x="832" y="324" width="130" height="8" rx="1" fill="#5A3A18"/>
+    <rect x="832" y="388" width="130" height="8" rx="1" fill="#5A3A18"/>
+    <rect x="840" y="212" width="14" height="46" rx="1" fill="#185FA5"/>
+    <rect x="857" y="216" width="12" height="42" rx="1" fill="#8B1A1A"/>
+    <rect x="872" y="208" width="16" height="50" rx="1" fill="#1A5C2A"/>
+    <rect x="891" y="214" width="12" height="44" rx="1" fill="#534AB7"/>
+    <rect x="906" y="212" width="14" height="46" rx="1" fill="#6A3A08"/>
+    <rect x="923" y="210" width="12" height="48" rx="1" fill="#4A4A4A"/>
+    <rect x="840" y="272" width="16" height="48" rx="1" fill="#C8601C"/>
+    <rect x="859" y="276" width="14" height="44" rx="1" fill="#185FA5"/>
+    <rect x="876" y="270" width="12" height="50" rx="1" fill="#3A2A14"/>
+    <rect x="891" y="274" width="16" height="46" rx="1" fill="#8B1A1A"/>
+    <rect x="910" y="272" width="12" height="48" rx="1" fill="#0F6E56"/>
+    <rect x="925" y="276" width="14" height="44" rx="1" fill="#534AB7"/>
+    <rect x="840" y="336" width="18" height="46" rx="1" fill="#1A5C2A"/>
+    <rect x="861" y="340" width="14" height="42" rx="1" fill="#8B5A2B"/>
+    <rect x="878" y="332" width="16" height="50" rx="1" fill="#185FA5"/>
+    <rect x="897" y="338" width="12" height="44" rx="1" fill="#8B1A1A"/>
+    <!-- Plant on bookshelf -->
+    <rect x="856" y="192" width="20" height="10" rx="2" fill="#6A3820"/>
+    <rect x="860" y="180" width="12" height="14" rx="2" fill="#2A6018"/>
+    <rect x="858" y="174" width="10" height="10" rx="4" fill="#3A8020"/>
+    <rect x="864" y="170" width="10" height="12" rx="4" fill="#4A9028"/>
+    <rect x="854" y="176" width="10" height="10" rx="4" fill="#2A6818"/>
+    <!-- Trash can (Easter egg) -->
+    <rect x="190" y="358" width="46" height="44" rx="2" fill="#4A3820"/>
+    <rect x="186" y="352" width="54" height="10" rx="2" fill="#5A4828"/>
+    <rect x="196" y="340" width="22" height="18" rx="1" fill="#F4EFE0" opacity=".8" transform="rotate(-15 207 349)"/>
+    <rect x="204" y="337" width="18" height="16" rx="1" fill="#ECE8D8" opacity=".7" transform="rotate(9 213 345)"/>
+    <!-- Tunnel entrance -->
+    <rect x="68" y="224" width="92" height="172" rx="46 46 0 0" fill="#18100A"/>
+    <rect x="74" y="230" width="80" height="162" rx="40 40 0 0" fill="#100A04"/>
+  </svg>
 </div>
 
-<!-- ══════════════════════ CONTENT ════════════════════════ -->
-<div class="content">
-
-  <!-- WHAT IS THIS -->
-  <div class="section-header">
-    <div class="section-num">00</div>
-    <div class="section-title">WHAT IS THIS</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div class="what-box">
-    <p>
-      Most TPRM programs evaluate vendors on <span class="hl">security controls</span> — SOC 2 reports, pen tests, vulnerability management.
-      Almost none of them evaluate <span class="hl2">privacy risk</span> — what vendors actually do with your data, and what protections exist for your data subjects.
-    </p>
-    <p>
-      <span class="mono">privacy-risk-analyzer</span> is an open source <span class="hl">n8n workflow</span> that applies <span class="hl3">The Privacy Lens Framework</span> to vendor artifacts —
-      scoring them across 8 dimensions, routing findings to legal with AI-drafted contract language, and logging evidence automatically.
-    </p>
-    <p>
-      Built for GRC teams <span class="hl2">without dedicated privacy counsel</span>. Especially useful for teams rapidly onboarding <span class="hl">AI vendors</span>.
-    </p>
-  </div>
-
-  <!-- HOW IT WORKS -->
-  <div class="section-header">
-    <div class="section-num">01</div>
-    <div class="section-title">HOW IT WORKS</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div class="pipeline">
-    <div class="pipe-stage">
-      <span class="pipe-icon">📥</span>
-      <span class="pipe-name">INGEST</span>
-      <span class="pipe-desc">Vendor folders in Google Drive — batch processed automatically. 3-tier URL discovery: common paths → robots.txt → homepage scrape. Browserless fetches JS-rendered policy pages.</span>
-    </div>
-    <div class="pipe-arrow">▶</div>
-    <div class="pipe-stage">
-      <span class="pipe-icon">🔬</span>
-      <span class="pipe-name">ANALYZE</span>
-      <span class="pipe-desc">Claude API scores vendor across 8 privacy dimensions + detects AI/ML vendor flag</span>
-    </div>
-    <div class="pipe-arrow">▶</div>
-    <div class="pipe-stage">
-      <span class="pipe-icon">🖨️</span>
-      <span class="pipe-name">REPORT</span>
-      <span class="pipe-desc">Gotenberg renders a styled 8-bit PDF report — saved automatically to vendor's Drive folder</span>
-    </div>
-    <div class="pipe-arrow">▶</div>
-    <div class="pipe-stage">
-      <span class="pipe-icon">⚡</span>
-      <span class="pipe-name">ACT</span>
-      <span class="pipe-desc">Routes to legal, vendor, GRC system, or escalation — automatically. No manual triage.</span>
-    </div>
-  </div>
-
-  <!-- FRAMEWORK -->
-  <div class="section-header">
-    <div class="section-num">02</div>
-    <div class="section-title">THE PRIVACY LENS FRAMEWORK</div>
-    <div class="section-line"></div>
-  </div>
-
-  <p style="font-size:17px; color:var(--dim); margin-bottom:16px; letter-spacing:1px;">
-    ◈ HOVER EACH DIMENSION TO SEE WHAT CLAUDE EVALUATES ◈
-  </p>
-
-  <div class="framework-grid">
-
-    <div class="dim-cell" data-num="D1">
-      <span class="dim-icon">🗜️</span>
-      <span class="dim-name">DATA MINIMIZATION</span>
-      <span class="dim-reg">GDPR Art. 5(1)(c)</span>
-      <div class="dim-detail">
-        <p>Does the vendor collect only what is necessary? Are retention windows defined?</p>
-        <p class="flag">🚩 Vague "business purposes" · no retention window</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D2">
-      <span class="dim-icon">🔗</span>
-      <span class="dim-name">SUB-PROCESSOR TRANSPARENCY</span>
-      <span class="dim-reg">GDPR Art. 28(2)</span>
-      <div class="dim-detail">
-        <p>Is a sub-processor list published? Are customers notified of changes?</p>
-        <p class="flag">🚩 No list · no change notification · broad "third parties"</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D3">
-      <span class="dim-icon">🧑‍⚖️</span>
-      <span class="dim-name">DATA SUBJECT RIGHTS</span>
-      <span class="dim-reg">GDPR Art. 15–22 · CCPA</span>
-      <div class="dim-detail">
-        <p>Can users exercise DSAR, deletion, portability, and correction rights?</p>
-        <p class="flag">🚩 No DSAR process · no deletion mechanism · no timelines</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D4">
-      <span class="dim-icon">🌍</span>
-      <span class="dim-name">TRANSFER MECHANISMS</span>
-      <span class="dim-reg">GDPR Chapter V</span>
-      <div class="dim-detail">
-        <p>Are cross-border transfers covered by SCCs, BCRs, or adequacy decisions?</p>
-        <p class="flag">🚩 No transfer basis · reliance on invalidated Privacy Shield</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D5">
-      <span class="dim-icon">🚨</span>
-      <span class="dim-name">BREACH NOTIFICATION</span>
-      <span class="dim-reg">GDPR Art. 33</span>
-      <div class="dim-detail">
-        <p>What are notification timelines and obligations to customers?</p>
-        <p class="flag">🚩 "Reasonable time" language · no customer notification obligation</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D6">
-      <span class="dim-icon">🤖</span>
-      <span class="dim-name">AI/ML DATA USAGE</span>
-      <span class="dim-reg">EU AI Act · GDPR Art. 22</span>
-      <div class="dim-detail">
-        <p>Is customer data used to train models? Is there an opt-out? Who are AI sub-processors?</p>
-        <p class="flag">🚩 No training opt-out · "improve services" language · AI sub-processors undisclosed</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D7">
-      <span class="dim-icon">🗑️</span>
-      <span class="dim-name">RETENTION & DELETION</span>
-      <span class="dim-reg">GDPR Art. 5(1)(e) · Art. 17</span>
-      <div class="dim-detail">
-        <p>Are deletion SLAs defined? What happens to data on contract termination?</p>
-        <p class="flag">🚩 No deletion SLA · no secure deletion standard · retained after termination</p>
-      </div>
-    </div>
-
-    <div class="dim-cell" data-num="D8">
-      <span class="dim-icon">📄</span>
-      <span class="dim-name">DPA COMPLETENESS</span>
-      <span class="dim-reg">GDPR Art. 28</span>
-      <div class="dim-detail">
-        <p>Does the DPA include all required Art. 28 elements: subject matter, duration, nature, obligations?</p>
-        <p class="flag">🚩 Missing processor obligations · no audit rights · no sub-processor controls</p>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- RISK ROUTING -->
-  <div class="section-header">
-    <div class="section-num">03</div>
-    <div class="section-title">RISK ROUTING</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div class="tier-grid">
-
-    <div class="tier-card tier-high">
-      <div class="tier-label">🔴 HIGH RISK</div>
-      <div class="tier-trigger">Any dimension scores 1 · OR weighted avg &lt; 2.5</div>
-      <ul class="tier-action">
-        <li>Jira ticket created → Priority: HIGH</li>
-        <li>Legal email with Contract Negotiation Brief</li>
-        <li>Slack alert → #legal-privacy-review</li>
-        <li>Claude drafts suggested contract language</li>
-        <li>GRC vendor record → HIGH tier</li>
-      </ul>
-    </div>
-
-    <div class="tier-card tier-medium">
-      <div class="tier-label">🟠 MEDIUM RISK</div>
-      <div class="tier-trigger">Weighted avg 2.5–3.5 · no dimension below 2</div>
-      <ul class="tier-action">
-        <li>Targeted follow-up questionnaire generated</li>
-        <li>Email sent to vendor (gaps only)</li>
-        <li>Jira ticket → Priority: MEDIUM</li>
-        <li>GRC vendor record → MEDIUM tier</li>
-      </ul>
-    </div>
-
-    <div class="tier-card tier-low">
-      <div class="tier-label">🟢 LOW RISK</div>
-      <div class="tier-trigger">Weighted avg &gt; 3.5 · no dimension below 3</div>
-      <ul class="tier-action">
-        <li>AI summary logged as GRC evidence</li>
-        <li>Vendor record → LOW tier</li>
-        <li>Requestor notified with clean summary</li>
-        <li>Fully automated — zero manual triage</li>
-      </ul>
-    </div>
-
-    <div class="tier-card tier-ai">
-      <div class="tier-label">🤖 AI VENDOR ESCALATION</div>
-      <div class="tier-trigger">AI/ML vendor detected — regardless of score</div>
-      <ul class="tier-action">
-        <li>Auto-escalate to GRC + Legal simultaneously</li>
-        <li>AI-specific DPA addendum questions generated</li>
-        <li>Slack alert → #ai-governance</li>
-        <li>Jira ticket tagged: AI-Vendor</li>
-      </ul>
-    </div>
-
-  </div>
-
-  <!-- TECH STACK -->
-  <div class="section-header">
-    <div class="section-num">04</div>
-    <div class="section-title">TECH STACK</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div class="stack-row">
-    <div class="stack-cell">
-      <span class="stack-icon">⚙️</span>
-      <span class="stack-name">n8n</span>
-      <span class="stack-role">Workflow orchestration</span>
-    </div>
-    <div class="stack-cell">
-      <span class="stack-icon">🧠</span>
-      <span class="stack-name">CLAUDE API</span>
-      <span class="stack-role">AI analysis engine</span>
-    </div>
-    <div class="stack-cell">
-      <span class="stack-icon">📁</span>
-      <span class="stack-name">GOOGLE DRIVE</span>
-      <span class="stack-role">Report storage</span>
-    </div>
-    <div class="stack-cell">
-      <span class="stack-icon">🌐</span>
-      <span class="stack-name">BROWSERLESS</span>
-      <span class="stack-role">JS-rendered policy fetching</span>
-    </div>
-    <div class="stack-cell">
-      <span class="stack-icon">🖨️</span>
-      <span class="stack-name">GOTENBERG</span>
-      <span class="stack-role">HTML → PDF engine</span>
-    </div>
-    <div class="stack-cell">
-      <span class="stack-icon">🐙</span>
-      <span class="stack-name">GITHUB</span>
-      <span class="stack-role">Open source dist.</span>
-    </div>
-  </div>
-
-  <!-- BUILD PHASES -->
-  <div class="section-header">
-    <div class="section-num">05</div>
-    <div class="section-title">BUILD PHASES</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div class="phase-list">
-
-    <div class="phase-item">
-      <div class="phase-num" style="background:#0077ff">
-        <span>PHASE</span><span>1</span>
-      </div>
-      <div class="phase-body">
-        <div class="phase-title">PRIVACY POLICY ANALYZER</div>
-        <div class="phase-meta"><span class="dur status-complete">✅ COMPLETE</span> · <span class="deliv">Deliverable: Working privacy policy analyzer with single-vendor and batch processing across all Google Drive vendor folders. 3-tier URL discovery, Browserless policy fetching, AI scoring across 8 dimensions, PDF + JSON reports auto-saved.</span></div>
-        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:100%"></div></div>
-      </div>
-    </div>
-
-    <div class="phase-item">
-      <div class="phase-num" style="background:#2563eb">
-        <span>PHASE</span><span>2</span>
-      </div>
-      <div class="phase-body">
-        <div class="phase-title">DPA GAP CHECKER + CONTRACT BRIEF</div>
-        <div class="phase-meta"><span class="dur status-next">▶ UP NEXT</span> · <span class="deliv">Deliverable: DPA analysis + legal-ready negotiation brief</span></div>
-        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
-      </div>
-    </div>
-
-    <div class="phase-item">
-      <div class="phase-num" style="background:#7b2fff">
-        <span>PHASE</span><span>3</span>
-      </div>
-      <div class="phase-body">
-        <div class="phase-title">AI VENDOR DETECTION + ADDENDUM</div>
-        <div class="phase-meta"><span class="dur status-planned">◇ PLANNED</span> · <span class="deliv">Deliverable: AI/ML detection + DPA addendum questions</span></div>
-        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
-      </div>
-    </div>
-
-    <div class="phase-item">
-      <div class="phase-num" style="background:#1a1a2e; border: 3px solid #00c8ff">
-        <span style="color:#00c8ff">PHASE</span><span style="color:#00c8ff">4</span>
-      </div>
-      <div class="phase-body">
-        <div class="phase-title">FULL PIPELINE + ACTION ROUTING</div>
-        <div class="phase-meta"><span class="dur status-planned">◇ PLANNED</span> · <span class="deliv">Deliverable: Complete end-to-end workflow + all integrations</span></div>
-        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
-      </div>
-    </div>
-
-    <div class="phase-item">
-      <div class="phase-num" style="background:#16a34a">
-        <span>PHASE</span><span>5</span>
-      </div>
-      <div class="phase-body">
-        <div class="phase-title">COMMUNITY &amp; ADOPTION</div>
-        <div class="phase-meta"><span class="dur status-planned">◇ PLANNED</span> · <span class="deliv">Deliverable: Contributors, real-world feedback, and expanded framework coverage</span></div>
-        <div class="phase-progress"><div class="phase-progress-fill" style="--target-width:0%"></div></div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- LIVE ASSESSMENT: SAMPLE -->
-  <div class="section-header">
-    <div class="section-num">06</div>
-    <div class="section-title">LIVE ASSESSMENT: DEMOVENDOR AI INC.</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div style="background:var(--panel); border:3px solid var(--green); box-shadow:0 0 0 3px var(--black),0 0 0 6px var(--green),0 0 24px rgba(0,255,157,0.12); padding:28px; margin-bottom:28px; position:relative; overflow:hidden;">
-    <div style="position:absolute;top:12px;right:16px;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);letter-spacing:1px;">// WORKFLOW OUTPUT · privacy-policy-analyzer.json</div>
-
-    <!-- header row -->
-    <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
-      <div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;">VENDOR</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:13px;color:var(--white);letter-spacing:1px;">DemoVendor AI Inc.</div>
-      </div>
-      <div style="margin-left:auto;text-align:right;">
-        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:6px;">RISK TIER</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:16px;color:var(--green);text-shadow:2px 2px 0 #003d26,0 0 16px var(--green);letter-spacing:2px;">🟢 LOW</div>
-      </div>
-    </div>
-
-    <!-- score + flags row -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:var(--border);margin-bottom:20px;">
-      <div style="background:var(--navy);padding:16px 14px;text-align:center;">
-        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">WEIGHTED AVG</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:22px;color:var(--green);text-shadow:0 0 12px var(--green);">3.6<span style="font-size:12px;color:var(--dim)"> / 5</span></div>
-      </div>
-      <div style="background:var(--navy);padding:16px 14px;text-align:center;">
-        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">AI VENDOR</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:18px;color:var(--accent);text-shadow:0 0 10px var(--accent);">TRUE ✓</div>
-      </div>
-      <div style="background:var(--navy);padding:16px 14px;text-align:center;">
-        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;">ESCALATION</div>
-        <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--yellow);line-height:1.6;">GRC + LEGAL<br>AUTO-ROUTED</div>
-      </div>
-    </div>
-
-    <!-- triggered actions -->
-    <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:10px;">TRIGGERED ACTIONS</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--green);color:var(--green);background:rgba(0,255,157,0.08);">🎫 JIRA · LOW</span>
-      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--accent);color:var(--accent);background:rgba(123,47,255,0.08);">🤖 AI-VENDOR TAG</span>
-      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--yellow);color:var(--yellow);background:rgba(255,230,0,0.08);">💬 #AI-GOVERNANCE</span>
-      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--pixel);color:var(--pixel);background:rgba(0,200,255,0.08);">📁 DRIVE LOGGED</span>
-      <span style="font-family:'Press Start 2P',monospace;font-size:7px;padding:5px 9px;border:2px solid var(--red);color:var(--red);background:rgba(255,56,96,0.08);">📧 LEGAL BRIEFED</span>
-    </div>
-
-    <!-- top finding -->
-    <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:10px;">TOP FINDING</div>
-    <div style="background:var(--navy);border-left:3px solid var(--yellow);padding:12px 16px;font-size:16px;color:var(--yellow);">⚠ Missing breach notification procedures and customer notification timelines</div>
-  </div>
-
-  <!-- GET STARTED -->
-  <div class="section-header">
-    <div class="section-num">07</div>
-    <div class="section-title">GET STARTED</div>
-    <div class="section-line"></div>
-  </div>
-
-  <div class="cta-box">
-    <div class="cta-title">▶ IMPORT + RUN IN MINUTES</div>
-
-    <div style="text-align:left; max-width:600px; margin:0 auto;">
-      <p style="font-size:17px; color:var(--dim); margin-bottom:8px; letter-spacing:1px;">1. Clone the repo</p>
-      <div class="code-block">git clone github.com/conorrusso/privacy-risk-analyzer<span class="cursor"></span></div>
-
-      <p style="font-size:17px; color:var(--dim); margin-bottom:8px; margin-top:16px; letter-spacing:1px;">2. Import workflow into n8n</p>
-      <div class="code-block">Import › workflows/privacy-policy-analyzer-batch.json<span class="cursor"></span></div>
-
-      <p style="font-size:17px; color:var(--dim); margin-bottom:8px; margin-top:16px; letter-spacing:1px;">3. Add credentials + activate</p>
-      <div class="code-block">ANTHROPIC_API_KEY + GOOGLE_DRIVE_CREDENTIALS<span class="cursor"></span></div>
-    </div>
-
-    <div style="margin-top:24px;">
-      <span class="tag">GDPR</span>
-      <span class="tag">CCPA</span>
-      <span class="tag">EU AI ACT</span>
-      <span class="tag">SOC 2</span>
-      <span class="tag">ISO 27001</span>
-      <span class="tag">FEDRAMP</span>
-      <span class="tag">TPRM</span>
-      <span class="tag">PRIVACY</span>
-      <span class="tag">GRC</span>
-    </div>
-  </div>
-
-
-  <!-- SWITCHING AI PROVIDERS -->
-  <div class="section-header">
-    <div class="section-num">08</div>
-    <div class="section-title">SWITCHING AI PROVIDERS</div>
-    <div class="section-line"></div>
-  </div>
-
-  <p style="font-size:17px; color:var(--dim); margin-bottom:20px; letter-spacing:1px;">
-    Configure <strong style="color:var(--pixel);">Node 4 (HTTP Request)</strong> in n8n with any of the providers below. Swap URL, headers, and body — everything else stays the same.
-  </p>
-
-  <!-- provider cards -->
-  <div style="display:flex; flex-direction:column; gap:3px; margin-bottom:32px;">
-
-    <!-- 1. Anthropic Claude -->
-    <div style="background:var(--panel); border:3px solid var(--pixel); padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
-      <div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:var(--pixel); letter-spacing:1px; margin-bottom:6px;">🧠 CLAUDE</div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">claude-sonnet-<br>4-20250514</div>
-        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--green);">~$0.01–0.03</div>
-        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
-      </div>
-      <div style="font-size:15px; line-height:1.8; color:var(--white);">
-        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:var(--pixel);">api.anthropic.com/v1/messages</span></div>
-        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">x-api-key: YOUR_KEY</span> &nbsp;<span style="color:var(--dim);">+ anthropic-version: 2023-06-01</span></div>
-        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · max_tokens · messages[{role,content}]</span></div>
-        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.content[0].text }}</span></div>
-        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → console.anthropic.com → API Keys</div>
-      </div>
-    </div>
-
-    <!-- 2. OpenAI GPT-4o -->
-    <div style="background:var(--panel); border:3px solid #10a37f; padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
-      <div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:#10a37f; letter-spacing:1px; margin-bottom:6px;">🟢 GPT-4O</div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">gpt-4o</div>
-        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--yellow);">~$0.05–0.10</div>
-        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
-      </div>
-      <div style="font-size:15px; line-height:1.8; color:var(--white);">
-        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:#10a37f;">api.openai.com/v1/chat/completions</span></div>
-        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">Authorization: Bearer YOUR_KEY</span></div>
-        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · max_tokens · temperature · messages[{role,content}]</span></div>
-        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.choices[0].message.content }}</span></div>
-        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → platform.openai.com → API Keys</div>
-      </div>
-    </div>
-
-    <!-- 3. Google Gemini -->
-    <div style="background:var(--panel); border:3px solid #fbbc04; padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
-      <div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:#fbbc04; letter-spacing:1px; margin-bottom:6px;">🔵 GEMINI</div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">gemini-2.0-flash</div>
-        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--green);">~$0.00–0.01</div>
-        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
-      </div>
-      <div style="font-size:15px; line-height:1.8; color:var(--white);">
-        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:#fbbc04;">generativelanguage.googleapis.com/v1beta/models/<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gemini-2.0-flash:generateContent?key=YOUR_KEY</span></div>
-        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">API key in URL query param — no header needed</span></div>
-        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">contents[{parts[{text}]}] · generationConfig{temperature,maxOutputTokens}</span></div>
-        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.candidates[0].content.parts[0].text }}</span></div>
-        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → aistudio.google.com → Get API key · Free tier available</div>
-      </div>
-    </div>
-
-    <!-- 4. Mistral -->
-    <div style="background:var(--panel); border:3px solid #ff7000; padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
-      <div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:#ff7000; letter-spacing:1px; margin-bottom:6px;">🌪 MISTRAL</div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">mistral-large-<br>latest</div>
-        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:7px; color:var(--green);">~$0.02–0.05</div>
-        <div style="margin-top:4px; font-size:13px; color:var(--dim);">per assessment</div>
-      </div>
-      <div style="font-size:15px; line-height:1.8; color:var(--white);">
-        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:#ff7000;">api.mistral.ai/v1/chat/completions</span></div>
-        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">Authorization: Bearer YOUR_KEY</span></div>
-        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · max_tokens · temperature · messages[{role,content}]</span></div>
-        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.choices[0].message.content }}</span></div>
-        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Get key → console.mistral.ai → API Keys · mistral-small at ~10× lower cost</div>
-      </div>
-    </div>
-
-    <!-- 5. Ollama -->
-    <div style="background:var(--panel); border:3px solid var(--green); padding:20px 24px; display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:start;">
-      <div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:8px; color:var(--green); letter-spacing:1px; margin-bottom:6px;">🦙 OLLAMA</div>
-        <div style="font-family:'Press Start 2P',monospace; font-size:7px; color:var(--dim); line-height:1.8;">mistral /<br>llama3.1 / phi3</div>
-        <div style="margin-top:10px; font-family:'Press Start 2P',monospace; font-size:9px; color:var(--green); text-shadow:0 0 8px var(--green);">FREE</div>
-        <div style="margin-top:4px; font-size:13px; color:var(--dim);">runs locally</div>
-      </div>
-      <div style="font-size:15px; line-height:1.8; color:var(--white);">
-        <div><span style="color:var(--dim);">URL</span> &nbsp;<span style="color:var(--green);">localhost:11434/api/generate</span></div>
-        <div><span style="color:var(--dim);">AUTH</span> &nbsp;<span style="color:var(--yellow);">None — no API key required</span></div>
-        <div><span style="color:var(--dim);">BODY</span> &nbsp;<span style="color:var(--green);">model · prompt · stream:false · options{temperature,num_predict}</span></div>
-        <div><span style="color:var(--dim);">RESP</span> &nbsp;<span style="color:var(--accent);">{{ $json.response }}</span> &nbsp;<span style="color:var(--dim); font-size:13px;">(flat string, not nested)</span></div>
-        <div style="margin-top:8px; font-size:13px; color:var(--dim);">Install → ollama.ai · Pull model once: <span style="color:var(--green);">ollama pull mistral</span></div>
-      </div>
-    </div>
-
-  </div>
-
-</div><!-- /content -->
-
-<!-- ══════════════════════ FOOTER ════════════════════════ -->
-<div class="footer">
-  <div class="footer-logo">THE PRIVACY LENS</div>
-  <div class="footer-tag">
-    Built by <span>Conor</span> · Compliance &amp; GRC<br>
-    <span>Open Source · MIT License · Contributions Welcome</span>
-  </div>
-</div>
+<!-- ── Footer bar ────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-name">🦝 BANDIT</div>
+  <nav class="footer-links" aria-label="Footer links">
+    <a href="#crew">Privacy Bandit</a>
+    <a href="#crew">Legal Bandit</a>
+    <a href="#crew">AI Bandit</a>
+    <a href="#crew">Audit Bandit</a>
+    <a href="#crew">Data Bandit</a>
+    <a href="https://github.com/conorrusso/privacy-risk-analyzer" target="_blank" rel="noopener">Docs</a>
+  </nav>
+  <div class="footer-gh">github.com/conorrusso/bandit</div>
+</footer>
 
 </body>
 </html>
