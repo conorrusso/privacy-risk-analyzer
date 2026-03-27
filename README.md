@@ -1,6 +1,6 @@
-# The Privacy Lens — Privacy Risk Analyzer
+# Bandit — Vendor Risk Intelligence Suite
 
-> AI-powered vendor privacy policy analysis for compliance teams. Works with Claude, GPT-4o, Gemini, Mistral, and Ollama.
+> Open-source AI-powered vendor risk intelligence. Scores privacy policies, contracts and compliance docs across your entire vendor portfolio.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Built for n8n](https://img.shields.io/badge/Built%20for-n8n-orange)](https://n8n.io)
@@ -11,14 +11,14 @@
 
 ## What It Does
 
-The Privacy Lens automates the review of vendor privacy policies, Data Processing Agreements (DPAs), and AI vendor assessments. It scores each document across 8 risk dimensions (D1–D8) aligned to GDPR, CCPA, and the EU AI Act, then routes results to your existing tools (Google Drive, Jira, Slack).
+Bandit automates the review of vendor privacy policies, Data Processing Agreements (DPAs), and AI vendor assessments. It scores each document across 8 risk dimensions (D1–D8) aligned to GDPR, CCPA, and the EU AI Act, then routes results to your existing tools (Google Drive, Jira, Slack).
 
 Each assessment produces a structured JSON risk report **and** a styled PDF report — automatically saved to the vendor's folder in Google Drive.
 
 **Workflows included:**
 | File | Purpose |
 |------|---------|
-| `privacy-policy-analyzer.json` | Full batch privacy policy intake, scoring, and PDF report generation |
+| `bandit-privacy.json` | Full batch privacy policy intake, scoring, and PDF report generation |
 | `dpa-gap-checker.json` | DPA clause coverage vs. GDPR Art. 28 checklist |
 | `ai-vendor-assessment.json` | Specialized scoring for AI/ML vendors (EU AI Act) |
 
@@ -26,7 +26,7 @@ Each assessment produces a structured JSON risk report **and** a styled PDF repo
 
 ## Architecture
 
-The main workflow (`privacy-policy-analyzer.json`) runs as a **full batch loop** — it processes every vendor folder in your Google Drive `Privacy Reviews/` root and skips any vendor assessed within the last year.
+The main workflow (`bandit-privacy.json`) runs as a **full batch loop** — it processes every vendor folder in your Google Drive `Privacy Reviews/` root and skips any vendor assessed within the last year.
 
 ### Policy Fetching — Browserless
 
@@ -54,7 +54,7 @@ After AI scoring, the workflow generates a styled retro-terminal HTML report and
 
 ### AI Scoring
 
-Policies are scored by `claude-sonnet-4-20250514` across 8 risk dimensions (D1–D8). The prompt and scoring rubric are in [`prompts/PT-1-privacy-policy-analysis.md`](prompts/PT-1-privacy-policy-analysis.md) and [`frameworks/privacy-risk-scoring-rubric.md`](frameworks/privacy-risk-scoring-rubric.md).
+Policies are scored by `claude-sonnet-4-20250514` across 8 risk dimensions (D1–D8). The prompt and scoring rubric are in [`prompts/PB-1-privacy-policy-analysis.md`](prompts/PB-1-privacy-policy-analysis.md) and [`frameworks/privacy-risk-scoring-rubric.md`](frameworks/privacy-risk-scoring-rubric.md).
 
 ---
 
@@ -71,8 +71,8 @@ Policies are scored by `claude-sonnet-4-20250514` across 8 risk dimensions (D1�
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/conorrusso/privacy-risk-analyzer.git
-cd privacy-risk-analyzer
+git clone https://github.com/conorrusso/bandit.git
+cd bandit
 ```
 
 ### 2. Start n8n + Gotenberg + Browserless
@@ -97,7 +97,7 @@ docker compose down
 
 1. Open n8n at `http://localhost:5678`
 2. Click **Workflows → Import from File**
-3. Select `workflows/privacy-policy-analyzer.json`
+3. Select `workflows/bandit-privacy.json`
 4. Configure your credentials (see [integrations/](integrations/))
 
 > **IF node import bug:** n8n has a known issue where IF nodes imported from JSON can silently route all traffic through one branch. If your workflow skips the error path or never reaches a downstream node, **delete the IF node and recreate it fresh** by dragging a new IF node from the panel, then rewire it. This is a one-time fix after import.
@@ -150,7 +150,7 @@ The workflow uses a single HTTP Request node for the AI call — swap the endpoi
 
 ## Risk Scoring Framework
 
-Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall **Privacy Risk Score (PRS)** is calculated as a weighted average. See [`/frameworks/privacy-risk-scoring-rubric.md`](frameworks/privacy-risk-scoring-rubric.md) for full definitions and thresholds.
+Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall **Bandit Risk Score (BRS)** is calculated as a weighted average. See [`/frameworks/privacy-risk-scoring-rubric.md`](frameworks/privacy-risk-scoring-rubric.md) for full definitions and thresholds.
 
 | Score Range | Risk Level | Recommended Action |
 |-------------|------------|-------------------|
@@ -170,7 +170,7 @@ Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall *
 - Before sharing or publishing a workflow JSON, confirm no credentials are embedded in node parameters.
 
 ### Browserless
-- Browserless is protected by a token (`TOKEN=privacy-lens` in `docker-compose.yml`). Change this for any shared or production environment.
+- Browserless is protected by a token (`TOKEN=bandit` in `docker-compose.yml`). Change this for any shared or production environment.
 - **Never expose port 3001 publicly.** Bind to localhost or place behind a firewall.
 
 ### Gotenberg
@@ -182,14 +182,14 @@ Policies are scored across 8 dimensions (D1–D8) on a 1–5 scale. An overall *
 ## Repository Structure
 
 ```
-privacy-risk-analyzer/
+bandit/
 ├── docker-compose.yml          ← starts n8n + Gotenberg + Browserless
 ├── workflows/
-│   ├── privacy-policy-analyzer.json   ← batch workflow (current)
+│   ├── bandit-privacy.json   ← batch workflow (current)
 │   ├── dpa-gap-checker.json
 │   └── ai-vendor-assessment.json
 ├── prompts/
-│   └── PT-1-privacy-policy-analysis.md
+│   └── PB-1-privacy-policy-analysis.md
 ├── frameworks/
 │   └── privacy-risk-scoring-rubric.md
 ├── integrations/

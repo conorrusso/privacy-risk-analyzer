@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "name": "The Privacy Lens — DPA Gap Checker",
+    "name": "Bandit — DPA Gap Checker",
     "description": "Checks Data Processing Agreements against a GDPR Article 28 clause checklist. Identifies missing mandatory clauses and generates a gap report.",
     "version": "1.0.0",
     "status": "PLACEHOLDER — import into n8n and configure credentials before use",

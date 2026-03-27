@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "The Privacy Lens — AI Vendor Assessment",
-    "description": "Specialized assessment workflow for AI/ML vendors. Extends PT-1 scoring with EU AI Act 2024 compliance checks: risk classification, transparency obligations, human oversight, and conformity assessment requirements.",
+    "name": "Bandit — AI Vendor Assessment",
+    "description": "Specialized assessment workflow for AI/ML vendors. Extends PB-1 scoring with EU AI Act 2024 compliance checks: risk classification, transparency obligations, human oversight, and conformity assessment requirements.",
     "version": "1.0.0",
     "status": "PLACEHOLDER — import into n8n and configure credentials before use",
     "n8n_version_required": "1.30+",
@@ -64,7 +64,7 @@
       "id": "parse_output",
       "type": "n8n-nodes-base.code",
       "name": "Parse & Enrich Assessment",
-      "notes": "Merges PT-1 JSON with EU AI Act classification result"
+      "notes": "Merges PB-1 JSON with EU AI Act classification result"
     },
     {
       "id": "high_risk_gate",

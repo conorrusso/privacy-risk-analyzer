@@ -1,6 +1,6 @@
 # Sample Output — Low Risk Assessment
 
-**The Privacy Lens v1.0 | Prompt: PT-1 v1.0**
+**Bandit v1.0 | Prompt: PB-1 v1.0**
 *This is a fictional example for demonstration purposes.*
 
 ---
@@ -13,7 +13,7 @@
     "vendor_name": "ClearData Solutions GmbH",
     "policy_url": "https://example-cleardata.eu/datenschutz",
     "assessment_date": "2025-09-15",
-    "prompt_version": "PT-1 v1.0",
+    "prompt_version": "PB-1 v1.0",
     "model_used": "claude-opus-4-6"
   }
 }

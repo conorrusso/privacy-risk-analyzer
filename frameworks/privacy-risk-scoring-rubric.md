@@ -1,13 +1,13 @@
 # Privacy Risk Scoring Rubric
 
-**The Privacy Lens — Framework v1.0**
+**Bandit — Privacy Risk Framework v1.0**
 Regulatory Coverage: GDPR (EU) 2016/679 · CCPA/CPRA · EU AI Act 2024
 
 ---
 
 ## Overview
 
-The Privacy Lens uses a structured **Privacy Risk Score (PRS)** to provide consistent, repeatable vendor assessments. This rubric defines the scoring criteria for each dimension, the weighting formula, risk thresholds, and recommended escalation paths.
+Bandit uses a structured **Bandit Risk Score (BRS)** to provide consistent, repeatable vendor assessments. This rubric defines the scoring criteria for each dimension, the weighting formula, risk thresholds, and recommended escalation paths.
 
 ---
 

@@ -1,6 +1,6 @@
 # Slack Integration Setup
 
-**The Privacy Lens — Integration Guide**
+**Bandit — Integration Guide**
 
 The Slack integration sends formatted risk assessment alerts to designated channels, with escalation pings for High and Critical findings.
 
@@ -16,7 +16,7 @@ The Slack integration sends formatted risk assessment alerts to designated chann
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps)
 2. Click **Create New App → From Scratch**
-3. Name: `Privacy Lens` | Select your workspace
+3. Name: `Bandit` | Select your workspace
 4. Go to **OAuth & Permissions**
 5. Under **Bot Token Scopes**, add:
    - `chat:write`
@@ -31,7 +31,7 @@ The Slack integration sends formatted risk assessment alerts to designated chann
 
 1. In n8n: **Settings → Credentials → New → Slack OAuth2 API**
 2. Paste the Bot User OAuth Token
-3. Name the credential `Slack - Privacy Lens`
+3. Name the credential `Slack - Bandit`
 
 ---
 
@@ -45,7 +45,7 @@ Create the following channels (or use existing ones):
 | `#privacy-alerts` | High and Critical risk alerts |
 | `#dpo-escalations` | Critical only — DPO team |
 
-Invite the Privacy Lens bot to each channel: `/invite @Privacy Lens`
+Invite the Bandit bot to each channel: `/invite @Bandit`
 
 ---
 
@@ -95,10 +95,10 @@ In the **Slack Notification** node of each workflow:
 
 | Parameter | Value |
 |-----------|-------|
-| Authentication | `Slack - Privacy Lens` credential |
+| Authentication | `Slack - Bandit` credential |
 | Channel | Dynamic based on risk level (use Switch node output) |
 | Message | Template from Step 4 |
-| As User | `Privacy Lens` |
+| As User | `Bandit` |
 
 ---
 

@@ -1,4 +1,4 @@
-# Prompt Template: PT-1 — Privacy Policy Risk Analysis
+# Prompt Template: PB-1 — Privacy Policy Risk Analysis
 
 **Version:** 1.0
 **Compatible Models:** Claude, GPT-4o, Gemini, Mistral, Ollama
@@ -26,7 +26,7 @@ Analyze the following vendor privacy policy and produce a structured risk assess
 - Vendor Name: {{vendor_name}}
 - Policy URL: {{policy_url}} (if available)
 - Assessment Date: {{assessment_date}}
-- Assessor: The Privacy Lens Automated Review
+- Assessor: Bandit Automated Review
 
 ## Policy Text
 {{policy_text}}
@@ -102,7 +102,7 @@ Return ONLY the following JSON structure with no additional text:
     "vendor_name": "string",
     "policy_url": "string or null",
     "assessment_date": "ISO 8601 date",
-    "prompt_version": "PT-1 v1.0",
+    "prompt_version": "PB-1 v1.0",
     "model_used": "string — fill with the model identifier you are running on"
   },
   "dimension_scores": {

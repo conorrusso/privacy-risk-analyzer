@@ -1,6 +1,6 @@
 # Google Drive Integration Setup
 
-**The Privacy Lens — Integration Guide**
+**Bandit — Integration Guide**
 
 The Google Drive integration saves risk assessment reports as structured Google Docs and maintains a vendor register spreadsheet.
 
@@ -35,7 +35,7 @@ The Google Drive integration saves risk assessment reports as structured Google 
 
 1. In n8n: **Settings → Credentials → New → Google Service Account**
 2. Paste the contents of your JSON key file
-3. Name the credential `Google Drive - Privacy Lens`
+3. Name the credential `Google Drive - Bandit`
 
 ---
 
@@ -44,7 +44,7 @@ The Google Drive integration saves risk assessment reports as structured Google 
 Create the following folder structure in Google Drive:
 
 ```
-Privacy Lens/
+Bandit/
 ├── Vendor Assessments/
 │   ├── [auto-populated by workflow]
 ├── Vendor Register (Sheet)/

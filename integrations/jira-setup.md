@@ -1,6 +1,6 @@
 # Jira Integration Setup
 
-**The Privacy Lens — Integration Guide**
+**Bandit — Integration Guide**
 
 The Jira integration automatically creates tickets for Medium+ risk assessments, assigns them to the appropriate reviewer, and tracks remediation status.
 
@@ -33,7 +33,7 @@ The Jira integration automatically creates tickets for Medium+ risk assessments,
    - **Email**: your Jira account email
    - **API Token**: token from Step 1
    - **Domain**: `https://your-org.atlassian.net`
-3. Name the credential `Jira - Privacy Lens`
+3. Name the credential `Jira - Bandit`
 
 ---
 

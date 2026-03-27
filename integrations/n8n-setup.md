@@ -1,6 +1,6 @@
 # n8n Setup Guide
 
-**The Privacy Lens — Integration Guide**
+**Bandit — Integration Guide**
 
 ---
 
@@ -35,8 +35,8 @@ n8n start
 This is the approach used to build and test this workflow. It runs n8n, Gotenberg, and Browserless together with a single command:
 
 ```bash
-git clone https://github.com/conorrusso/privacy-risk-analyzer.git
-cd privacy-risk-analyzer
+git clone https://github.com/conorrusso/bandit.git
+cd bandit
 docker compose up -d
 ```
 
@@ -51,7 +51,7 @@ The `docker-compose.yml` in the repo root is pre-configured with the correct net
 
 ## Setting Up Gotenberg
 
-Gotenberg is an open source Docker-powered PDF conversion engine. The Privacy Lens uses it to convert the styled HTML report into a PDF and save it to Google Drive.
+Gotenberg is an open source Docker-powered PDF conversion engine. Bandit uses it to convert the styled HTML report into a PDF and save it to Google Drive.
 
 ### Why Gotenberg?
 - No external API account required
@@ -78,7 +78,7 @@ If running standalone, update the **Convert to PDF** node URL in the workflow fr
 
 ## Setting Up Browserless
 
-Browserless is a self-hosted headless Chromium service. The Privacy Lens uses it for policy fetching instead of plain HTTP requests — this handles JavaScript-rendered pages and bypasses common bot-detection mechanisms.
+Browserless is a self-hosted headless Chromium service. Bandit uses it for policy fetching instead of plain HTTP requests — this handles JavaScript-rendered pages and bypasses common bot-detection mechanisms.
 
 ### Why Browserless?
 - Renders JavaScript-heavy pages that a plain `fetch` would miss
@@ -91,7 +91,7 @@ Browserless is a self-hosted headless Chromium service. The Privacy Lens uses it
 docker run -d \
   --name browserless \
   -p 3001:3000 \
-  -e TOKEN=privacy-lens \
+  -e TOKEN=bandit \
   ghcr.io/browserless/chromium
 ```
 
@@ -382,7 +382,7 @@ ollama serve
 | Ollama connection refused | Ensure Ollama is running: `ollama serve` |
 | PDF node returns connection error | Confirm Gotenberg is running: `docker ps` — should show `gotenberg` container. Check URL is `http://gotenberg:3000` inside Docker Compose or `http://localhost:3000` if standalone |
 | PDF node returns empty binary | Confirm the Generate HTML Report node outputs `binary.htmlFile` — check the node's output in n8n execution view |
-| Policy fetch returns 403 or empty | Browserless not running or token mismatch — confirm `browserless` container is up and `TOKEN=privacy-lens` is set |
+| Policy fetch returns 403 or empty | Browserless not running or token mismatch — confirm `browserless` container is up and `TOKEN=bandit` is set |
 | IF node routes to wrong branch | Imported IF nodes can silently misroute — delete the node and recreate it fresh from the node panel, then rewire |
 | Google Drive folder not found | Folder name in Drive must match search query exactly — check for trailing spaces or casing |
 | `docker compose` not found | Try `docker-compose` (with hyphen) or upgrade Docker Desktop |

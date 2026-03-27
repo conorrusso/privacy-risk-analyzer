@@ -1,4 +1,4 @@
-# Contributing to The Privacy Lens
+# Contributing to Bandit
 
 Thank you for your interest in contributing. This project welcomes contributions from privacy professionals, compliance engineers, and developers.
 
@@ -7,10 +7,10 @@ Thank you for your interest in contributing. This project welcomes contributions
 ## Ways to Contribute
 
 ### Prompt Improvements (`/prompts/`)
-The most impactful contributions are improvements to the scoring prompt (PT-1). Areas of interest:
+The most impactful contributions are improvements to the scoring prompt (PB-1). Areas of interest:
 - Additional regulatory coverage (LGPD, PIPL, POPIA, PIPEDA)
 - Improved scoring rubric calibration based on real-world assessments
-- New prompt templates (PT-2, PT-3) for specific contexts (healthcare, fintech, HR tech)
+- New prompt templates (PB-2, PB-3) for specific contexts (healthcare, fintech, HR tech)
 
 ### New Workflows (`/workflows/`)
 Workflow contributions for new use cases:
@@ -53,7 +53,7 @@ Open an issue for:
 ## Style Guide
 
 ### Prompt Templates
-- Use the `PT-N` naming convention (PT-2, PT-3, etc.)
+- Use the `PT-N` naming convention (PB-2, PB-3, etc.)
 - Include metadata header (version, models tested, regulatory coverage)
 - All prompts must work with at least 2 different AI providers
 - JSON output format must be documented in the prompt file itself
