@@ -9,6 +9,7 @@ credentials.json
 *.env
 .env
 .env.*
+config.env
 !.env.example
 
 # Secrets

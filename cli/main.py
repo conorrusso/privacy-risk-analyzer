@@ -25,7 +25,7 @@ from core.scoring.rubric import AssessmentResult, result_to_dict
 
 def _load_dotenv() -> None:
     """Load .env from the repo root if present (no external dependencies)."""
-    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    env_path = os.path.join(os.path.dirname(__file__), "..", "config.env")
     env_path = os.path.normpath(env_path)
     if not os.path.isfile(env_path):
         return
