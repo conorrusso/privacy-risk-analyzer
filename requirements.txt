@@ -1,0 +1,13 @@
+# Bandit — Python dependencies
+#
+# The only non-stdlib dependency is the Anthropic SDK.
+# All other packages (urllib, html.parser, json, re, abc, dataclasses)
+# are Python stdlib and require no installation.
+#
+# Adding a provider:
+#   OpenAI:  pip install openai>=1.30.0
+#   Google:  pip install google-generativeai>=0.7.0
+#   Ollama:  pip install ollama>=0.2.0
+#   (implement core/llm/<provider>.py following the BaseLLMProvider interface)
+
+anthropic>=0.40.0
