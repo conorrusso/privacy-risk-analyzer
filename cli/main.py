@@ -23,6 +23,27 @@ import textwrap
 from core.scoring.rubric import AssessmentResult, result_to_dict
 
 
+def _load_dotenv() -> None:
+    """Load .env from the repo root if present (no external dependencies)."""
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    env_path = os.path.normpath(env_path)
+    if not os.path.isfile(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+_load_dotenv()
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Terminal formatting
 # ─────────────────────────────────────────────────────────────────────
