@@ -4,9 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bandit — Vendor Risk Intelligence Suite</title>
-  <meta name="description" content="A crew of AI-powered auditors that rummage through your vendors' privacy policies, contracts and compliance docs — so you don't have to."/>
+  <meta name="description" content="Open-source AI agent for vendor privacy risk assessment. Provider-agnostic. Free forever. Scores vendors across 8 GDPR/CCPA dimensions with a published, enforcement-grounded rubric."/>
   <meta property="og:title" content="Bandit — Vendor Risk Intelligence Suite"/>
-  <meta property="og:description" content="Open-source n8n workflows for automated vendor risk assessment."/>
+  <meta property="og:description" content="Open-source AI agent for vendor risk assessment. Free forever. Use Claude, GPT-4o, Gemini, or run fully local with Ollama."/>
   <meta property="og:type" content="website"/>
   <style>
     /* ── Reset ─────────────────────────────────────────────────── */
@@ -142,7 +142,25 @@
     .tagline-sub { font-size: 13px; color: var(--hint); margin-top: 10px; font-family: system-ui, sans-serif; letter-spacing: .04em; }
     .tagline-cta { margin-top: 28px; }
 
-    /* ── Cave footer scene ──────────────────────────────────────── */
+    /* ── Rubric section ─────────────────────────────────────────── */
+    .rubric-section { padding: 52px 40px; background: var(--cream); }
+    .rubric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; max-width: 900px; margin: 0 auto; }
+    .rubric-card { background: var(--cream2); border: 1.5px solid var(--border); border-radius: 6px; padding: 14px 12px; }
+    .rubric-dim { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--brown); margin-bottom: 4px; }
+    .rubric-name { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+    .rubric-cite { font-size: 11px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.4; }
+
+    /* ── Provider section ───────────────────────────────────────── */
+    .provider-section { background: var(--cream2); border-top: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border); padding: 48px 40px; }
+    .provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; max-width: 900px; margin: 0 auto; }
+    .provider-card { background: var(--cream); border: 1.5px solid var(--border); border-radius: 6px; padding: 16px 14px; text-align: center; }
+    .provider-name { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; letter-spacing: .04em; }
+    .provider-model { font-size: 11px; color: var(--muted); font-family: 'Courier New', monospace; margin-bottom: 6px; }
+    .provider-note { font-size: 11px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.4; }
+    .provider-pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 2px; margin-top: 6px; }
+    .pill-free { background: #D4EDDA; color: #1A5C2A; border: 1px solid #8BC49A; }
+    .pill-local { background: #E8F0FE; color: #1A3A8A; border: 1px solid #8AAAD4; }
+    .pill-cloud { background: var(--cream2); color: var(--muted); border: 1px solid var(--border); }
     .cave-scene { display: block; width: 100%; overflow: hidden; }
     .cave-scene svg { display: block; width: 100%; }
 
@@ -196,23 +214,24 @@
   </a>
   <ul class="nav-links">
     <li><a href="#crew">The Crew</a></li>
+    <li><a href="#rubric">The Rubric</a></li>
     <li><a href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GitHub</a></li>
     <li><a href="https://github.com/conorrusso/bandit/blob/main/README.md" target="_blank" rel="noopener">Docs</a></li>
   </ul>
-  <a class="nav-cta" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">DEPLOY THE CREW ↗</a>
+  <a class="nav-cta" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GET STARTED ↗</a>
 </nav>
 
 <!-- ── Hero ─────────────────────────────────────────────────────── -->
 <section class="hero" aria-label="Hero">
   <div class="hero-text">
-    <div class="eyebrow">OPEN SOURCE · n8n · AI-POWERED</div>
+    <div class="eyebrow">FREE · OPEN SOURCE · PROVIDER-AGNOSTIC</div>
     <p class="punchline">YOUR VENDORS ARE HOPING YOU DON'T READ THE FINE PRINT.</p>
     <h1 class="hero-title">BANDIT</h1>
     <p class="hero-tag">Vendor Risk Intelligence Suite</p>
-    <p class="hero-desc">A crew of AI auditors that rummage through privacy policies, contracts and compliance docs across your entire vendor portfolio. Automated. Overnight. Straight to your Google Drive.</p>
+    <p class="hero-desc">A crew of AI agents that rummage through privacy policies, contracts and compliance docs across your entire vendor portfolio. Scores against a published, enforcement-grounded rubric. Use Claude, GPT-4o, Gemini — or run fully local with Ollama.</p>
     <div class="hero-btns">
-      <a class="btn-primary" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">DEPLOY THE CREW</a>
-      <a class="btn-ghost" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">VIEW ON GITHUB</a>
+      <a class="btn-primary" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GET STARTED</a>
+      <a class="btn-ghost" href="https://github.com/conorrusso/bandit/blob/main/core/scoring/RUBRIC.md" target="_blank" rel="noopener">READ THE RUBRIC</a>
     </div>
   </div>
 </section>
@@ -573,19 +592,19 @@
 <!-- ── Problem strip ─────────────────────────────────────────────── -->
 <section class="strip" aria-labelledby="problem-heading">
   <div class="section-label">YOU ALREADY KNOW THIS PART</div>
-  <h2 class="section-h2" id="problem-heading">Your GRC program runs on manual reviews nobody finished.</h2>
+  <h2 class="section-h2" id="problem-heading">Your GRC team reviews vendors. Nothing happens with the findings.</h2>
   <div class="card-grid">
     <div class="card">
-      <div class="card-title">📋 HUNDREDS OF VENDORS</div>
-      <p class="card-desc">No team has time to read every privacy policy, DPA and MSA. So they don't. That's the problem Bandit solves.</p>
+      <div class="card-title">📋 REVIEWS GO NOWHERE</div>
+      <p class="card-desc">GRC scores the policy. Legal negotiates blind. The findings sit in a spreadsheet. No team gets what they need to act.</p>
     </div>
     <div class="card">
       <div class="card-title">🕳️ HIDDEN RISK</div>
-      <p class="card-desc">AI training clauses, missing breach timelines, silent sub-processors — buried in plain sight. Bandit finds them.</p>
+      <p class="card-desc">AI training clauses, missing breach timelines, silent sub-processors. Buried in plain sight. Bandit finds them and tells each team what to do next.</p>
     </div>
     <div class="card">
       <div class="card-title">🔄 POLICIES CHANGE QUIETLY</div>
-      <p class="card-desc">Vendors update terms without telling you. Without a system, you find out when it's already too late.</p>
+      <p class="card-desc">Vendors update terms without telling you. Bandit re-runs assessments on schedule and flags what changed.</p>
     </div>
   </div>
 </section>
@@ -593,8 +612,8 @@
 <!-- ── Crew ──────────────────────────────────────────────────────── -->
 <section class="crew" id="crew" aria-labelledby="crew-heading">
   <div class="section-label">MEET THE CREW</div>
-  <h2 class="section-h2" id="crew-heading">Each Bandit specialises in a different kind of heist.</h2>
-  <p style="font-size:13px;color:var(--muted);text-align:center;font-family:system-ui,sans-serif;margin-bottom:32px;">Modular n8n workflows. Use one or run the whole crew overnight.</p>
+  <h2 class="section-h2" id="crew-heading">Each Bandit is a specialised AI agent.</h2>
+  <p style="font-size:13px;color:var(--muted);text-align:center;font-family:system-ui,sans-serif;margin-bottom:32px;">Modular Python agents. Each one knows its domain, picks its own tools, and adapts to what it finds. Use one or run the whole crew.</p>
   <div class="crew-grid">
 
     <!-- Privacy Bandit -->
@@ -732,10 +751,101 @@
   </div>
 </section>
 
-<!-- ── Tagline ───────────────────────────────────────────────────── -->
+<!-- ── Rubric section ─────────────────────────────────────────────── -->
+<section class="rubric-section" id="rubric" aria-labelledby="rubric-heading">
+  <div class="section-label">THE BANDIT RUBRIC</div>
+  <h2 class="section-h2" id="rubric-heading">Consistent scores regardless of which AI you use.</h2>
+  <p style="font-size:13px;color:var(--muted);text-align:center;font-family:system-ui,sans-serif;margin-bottom:32px;max-width:560px;margin-left:auto;margin-right:auto;line-height:1.7;">The AI extracts evidence. Bandit scores it. A published, enforcement-grounded rubric — built from GDPR enforcement actions, FTC settlements, and EDPB guidelines — means GPT-4o and Claude produce the same score from the same policy.</p>
+  <div class="rubric-grid">
+    <div class="rubric-card">
+      <div class="rubric-dim">D1</div>
+      <div class="rubric-name">Data minimization</div>
+      <div class="rubric-cite">GDPR Art. 5(1)(c) · CPPA Apr 2024</div>
+    </div>
+    <div class="rubric-card">
+      <div class="rubric-dim">D2</div>
+      <div class="rubric-name">Sub-processor management</div>
+      <div class="rubric-cite">GDPR Art. 28(2),(4) · CRITEO €40M</div>
+    </div>
+    <div class="rubric-card">
+      <div class="rubric-dim">D3</div>
+      <div class="rubric-name">Data subject rights</div>
+      <div class="rubric-cite">GDPR Arts. 12–23 · CCPA/CPRA</div>
+    </div>
+    <div class="rubric-card">
+      <div class="rubric-dim">D4</div>
+      <div class="rubric-name">Transfer mechanisms</div>
+      <div class="rubric-cite">GDPR Arts. 44–50 · SCCs 2021</div>
+    </div>
+    <div class="rubric-card">
+      <div class="rubric-dim">D5</div>
+      <div class="rubric-name">Breach notification</div>
+      <div class="rubric-cite">GDPR Art. 33 · Meta €251M Dec 2024</div>
+    </div>
+    <div class="rubric-card" style="border-color:var(--brown);">
+      <div class="rubric-dim">D6 ×1.5</div>
+      <div class="rubric-name">AI/ML data usage</div>
+      <div class="rubric-cite">EU AI Act 2024 · FTC disgorgement · Everalbum</div>
+    </div>
+    <div class="rubric-card">
+      <div class="rubric-dim">D7</div>
+      <div class="rubric-name">Retention &amp; deletion</div>
+      <div class="rubric-cite">GDPR Art. 5(1)(e) · Netflix €4.75M Dec 2024</div>
+    </div>
+    <div class="rubric-card" style="border-color:var(--brown);">
+      <div class="rubric-dim">D8 ×1.5</div>
+      <div class="rubric-name">DPA completeness</div>
+      <div class="rubric-cite">GDPR Art. 28(3)(a)–(h) · EDPB Guidelines 7/2020</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:28px;">
+    <a class="btn-ghost" href="https://github.com/conorrusso/bandit/blob/main/core/scoring/RUBRIC.md" target="_blank" rel="noopener">READ THE FULL RUBRIC →</a>
+  </div>
+</section>
+
+<!-- ── Provider section ───────────────────────────────────────────── -->
+<section class="provider-section" aria-labelledby="provider-heading">
+  <div class="section-label">PROVIDER-AGNOSTIC</div>
+  <h2 class="section-h2" id="provider-heading">Your API key. Your infrastructure. Your choice.</h2>
+  <div class="provider-grid">
+    <div class="provider-card">
+      <div class="provider-name">Claude</div>
+      <div class="provider-model">claude-opus-4-6</div>
+      <p class="provider-note">Best overall quality for nuanced policy analysis</p>
+      <span class="provider-pill pill-cloud">API key required</span>
+    </div>
+    <div class="provider-card">
+      <div class="provider-name">GPT-4o</div>
+      <div class="provider-model">gpt-4o</div>
+      <p class="provider-note">Excellent quality, widely used in enterprise environments</p>
+      <span class="provider-pill pill-cloud">API key required</span>
+    </div>
+    <div class="provider-card">
+      <div class="provider-name">Gemini</div>
+      <div class="provider-model">gemini-1.5-pro</div>
+      <p class="provider-note">Strong quality at lower cost per assessment</p>
+      <span class="provider-pill pill-cloud">API key required</span>
+    </div>
+    <div class="provider-card">
+      <div class="provider-name">Ollama</div>
+      <div class="provider-model">llama3.1 · mistral</div>
+      <p class="provider-note">Fully local. No API key. Data never leaves your machine.</p>
+      <span class="provider-pill pill-local">Fully local</span>
+      <span class="provider-pill pill-free">Free</span>
+    </div>
+    <div class="provider-card">
+      <div class="provider-name">Mistral</div>
+      <div class="provider-model">mistral-large-latest</div>
+      <p class="provider-note">Good quality, European-hosted option for data residency</p>
+      <span class="provider-pill pill-cloud">API key required</span>
+    </div>
+  </div>
+</section>
+
+
 <section class="tagline-section">
   <h2 class="tagline-h">Every vendor has something <span>to hide.</span></h2>
-  <p class="tagline-sub">Bandit finds it first.</p>
+  <p class="tagline-sub">Bandit finds it first. Free, open source, forever.</p>
   <div class="tagline-cta">
     <a class="btn-primary" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GET STARTED ON GITHUB</a>
   </div>
@@ -920,12 +1030,12 @@
 <footer>
   <div class="footer-name">🦝 BANDIT</div>
   <nav class="footer-links" aria-label="Footer links">
-    <a href="#crew">Privacy Bandit</a>
-    <a href="#crew">Legal Bandit</a>
-    <a href="#crew">AI Bandit</a>
-    <a href="#crew">Audit Bandit</a>
-    <a href="#crew">Data Bandit</a>
-    <a href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">Docs</a>
+    <a href="#crew">The Crew</a>
+    <a href="#rubric">The Rubric</a>
+    <a href="https://github.com/conorrusso/bandit/blob/main/core/scoring/RUBRIC.md" target="_blank" rel="noopener">RUBRIC.md</a>
+    <a href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/conorrusso/bandit/blob/main/README.md" target="_blank" rel="noopener">Docs</a>
+    <a href="https://github.com/conorrusso/bandit/tree/main/legacy" target="_blank" rel="noopener">Legacy n8n</a>
   </nav>
   <div class="footer-gh">github.com/conorrusso/bandit</div>
 </footer>
