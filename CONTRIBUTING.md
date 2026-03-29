@@ -1,100 +1,122 @@
 # Contributing to Bandit
 
-Thank you for your interest in contributing. This project welcomes contributions from privacy professionals, compliance engineers, and developers.
+Thank you for your interest in contributing. Bandit welcomes contributions from privacy professionals, compliance engineers, and developers.
 
 ---
 
-## Ways to Contribute
+## Ways to contribute
 
-### Prompt Improvements (`/prompts/`)
-The most impactful contributions are improvements to the scoring prompt (PB-1). Areas of interest:
-- Additional regulatory coverage (LGPD, PIPL, POPIA, PIPEDA)
-- Improved scoring rubric calibration based on real-world assessments
-- New prompt templates (PB-2, PB-3) for specific contexts (healthcare, fintech, HR tech)
+### Rubric improvements (`core/scoring/rubric.py`)
 
-### New Workflows (`/workflows/`)
-Workflow contributions for new use cases:
-- Cookie notice analyzer
-- Privacy notice change detector (diff workflow)
-- Vendor re-assessment on policy update (triggered by web scraper)
-- RoPA (Record of Processing Activities) builder
+The most impactful contributions — no AI expertise needed. Areas of interest:
 
-### Framework Updates (`/frameworks/`)
-- Rubric versioning and calibration improvements
-- New regulatory frameworks (add as separate files, e.g., `lgpd-scoring-rubric.md`)
+- Additional regulatory coverage (LGPD, PIPL, POPIA, PIPEDA, UK GDPR)
+- New red-flag phrases backed by enforcement actions or regulatory guidance
+- Signal calibration improvements based on real-world assessments
+- New scoring levels or adjusted weights with documented rationale
 
-### Integration Guides (`/integrations/`)
-Setup guides for additional integrations:
-- Notion
-- Monday.com
-- ServiceNow
-- Microsoft Teams
-- Confluence
+### Provider adapters (`core/llm/`)
 
-### Bug Reports & Feedback
+Add a new LLM provider:
+
+1. Subclass `BaseLLMProvider` in `core/llm/base.py`
+2. Implement `complete_json(prompt, max_tokens) -> dict`
+3. Add the provider to the `--provider` option in `cli/main.py`
+
+All providers must return a JSON object matching the extraction schema. Test with both a high-risk and low-risk example before submitting.
+
+### New agent implementations (`core/agents/`)
+
+The crew is modular — each Bandit is a subclass of `BaseBandit`. To implement a new agent:
+
+1. Subclass `BaseBandit` in `core/agents/`
+2. Implement `assess(vendor) -> PrivacyAssessment` (or a compatible return type)
+3. Add a CLI command in `cli/main.py`
+
+Planned agents: Legal Bandit (MSA/DPA), AI Bandit (EU AI Act), Audit Bandit (SOC 2 / ISO 27001), Data Bandit (flow mapping).
+
+### Discovery improvements (`core/tools/discover.py`)
+
+- Improve the DDG search query construction
+- Add new common privacy path patterns to `_PRIVACY_PATHS`
+- Improve the AI-reasoning fallback prompt
+- Improve homepage link scraping logic
+
+### Bug reports
+
 Open an issue for:
+
 - Inaccurate regulatory citations
 - Scoring logic errors
-- Workflow JSON import failures
-- Documentation gaps
+- Incorrect signal extraction
+- Discovery failures for specific vendors (include the vendor name and what URL was found)
+- HTML report rendering issues
 
 ---
 
-## Contribution Process
+## Contribution process
 
 1. **Fork** the repository
 2. **Create a branch:** `git checkout -b feature/your-feature-name`
-3. **Make your changes** following the style guides below
-4. **Test your changes** (for workflows: test import and execution in n8n)
+3. **Make your changes** following the style guide below
+4. **Test** with at least one live vendor assessment
 5. **Submit a Pull Request** with a clear description
 
+PR title format: `type: short description` where type is one of `feat`, `fix`, `rubric`, `docs`, `refactor`.
+
+Examples:
+- `rubric: add PIPL signals for D3 and D4`
+- `feat: add Gemini provider adapter`
+- `fix: handle JS-rendered pages in discover fallback`
+
 ---
 
-## Style Guide
+## Style guide
 
-### Prompt Templates
-- Use the `PT-N` naming convention (PB-2, PB-3, etc.)
-- Include metadata header (version, models tested, regulatory coverage)
-- All prompts must work with at least 2 different AI providers
-- JSON output format must be documented in the prompt file itself
-- Test with both high-risk and low-risk examples before submitting
+### Python
 
-### Workflow JSON Files
-- Include a `_meta` block with `name`, `description`, `version`, `status`
-- Include `_setup_instructions` array
-- Node IDs should be descriptive strings (not UUIDs)
-- Add a `notes` field to every node explaining its purpose
-- Mark all credential-dependent nodes clearly
+- Match the existing code style (no formatter enforced — just be consistent)
+- Type annotations on all public functions and methods
+- Docstrings on public classes and methods
+- No external dependencies without discussion — the CLI should stay lightweight
+
+### Rubric signals
+
+- Signal keys follow the pattern `d{N}_{slug}` (e.g., `d1_purpose_limitation`)
+- Each signal maps to exactly one dimension
+- Required signals for a level must be verifiable from policy text alone
+- Add enforcement citations where available
+
+### Regulatory citations
+
+- GDPR: `GDPR Art. X` or `GDPR Art. X(Y)(z)`
+- CCPA/CPRA: `CCPA §1798.XXX`
+- EU AI Act: `EU AI Act 2024 Art. X`
+- Include the article's short title where helpful
 
 ### Documentation
-- Use sentence case for headings
-- Include a Prerequisites section in all setup guides
-- Include a Troubleshooting table with common errors and solutions
-- Link to relevant regulatory articles when citing compliance requirements
-- Do not include screenshots (they become outdated; use text instructions instead)
 
-### Regulatory Citations
-- GDPR: cite as `GDPR Art. X` or `GDPR Art. X(Y)(z)`
-- CCPA: cite as `CCPA §1798.XXX`
-- EU AI Act: cite as `EU AI Act 2024 Art. X` or `EU AI Act Annex X`
-- Include the short title of the article where helpful (e.g., "GDPR Art. 17 (right to erasure)")
+- Use sentence case for headings
+- Include a Prerequisites section in setup guides
+- Do not include screenshots (they go stale; use text instructions)
 
 ---
 
-## Rubric Versioning
+## Rubric versioning
 
 The scoring rubric follows semantic versioning:
-- **Patch** (1.0.x): Clarifications, wording improvements, no scoring changes
-- **Minor** (1.x.0): New sub-criteria or evidence questions added
-- **Major** (x.0.0): Scoring scale changes, dimension additions/removals, weight changes
 
-Breaking changes to scoring criteria must be documented in a `CHANGELOG.md` entry.
+- **Patch** (1.0.x): Clarifications, wording improvements, no scoring changes
+- **Minor** (1.x.0): New signals or sub-criteria added
+- **Major** (x.0.0): Scale changes, dimension additions/removals, weight changes
+
+Breaking changes must be documented in `CHANGELOG.md`.
 
 ---
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). By participating, you agree to uphold these standards.
+This project follows the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). By participating, you agree to uphold these standards.
 
 ---
 
@@ -102,4 +124,4 @@ This project follows the [Contributor Covenant Code of Conduct](https://www.cont
 
 By contributing, you agree that your contributions will be licensed under the MIT License. Do not contribute content you do not have the right to license.
 
-Contributions should not include real vendor names or actual privacy policy text from real companies in example files. Use fictional vendor names (as in the `/examples/` folder).
+Example files should use fictional vendor names — do not include real privacy policy text from real companies.

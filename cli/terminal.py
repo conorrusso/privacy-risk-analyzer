@@ -65,26 +65,35 @@ def _fmt(slug: str) -> str:
 # ─────────────────────────────────────────────────────────────────────
 
 @contextmanager
-def assessment_progress():
+def assessment_progress(verbose: bool = False):
     """Context manager that yields an update(msg) callable.
 
+    verbose=False  — Rich spinner; progress lines overwrite each other.
+    verbose=True   — each progress line is printed permanently so the
+                     full stage trace is visible after the run.
+
     Usage in main.py:
-        with assessment_progress() as update:
+        with assessment_progress(verbose=args.verbose) as update:
             bandit = PrivacyBandit(provider, on_progress=update)
             result = bandit.assess(vendor)
     """
-    with Progress(
-        SpinnerColumn(style="color(172)"),
-        TextColumn("[color(245)]{task.description}"),
-        transient=True,
-        console=console,
-    ) as progress:
-        task = progress.add_task("Initialising…")
-
+    if verbose:
         def update(msg: str) -> None:
-            progress.update(task, description=msg)
-
+            console.print(f"  [dim color(245)]{msg}[/]")
         yield update
+    else:
+        with Progress(
+            SpinnerColumn(style="color(172)"),
+            TextColumn("[color(245)]{task.description}"),
+            transient=True,
+            console=console,
+        ) as progress:
+            task = progress.add_task("Initialising…")
+
+            def update(msg: str) -> None:
+                progress.update(task, description=msg)
+
+            yield update
 
 
 # ─────────────────────────────────────────────────────────────────────
