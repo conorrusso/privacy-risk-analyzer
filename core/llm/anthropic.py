@@ -27,7 +27,7 @@ from core.llm.base import BaseLLMProvider, LLMResponse, ToolCall
 class AnthropicProvider(BaseLLMProvider):
     """Adapter for Anthropic Claude models."""
 
-    DEFAULT_MODEL = "claude-opus-4-6"
+    DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
     def __init__(
         self,

@@ -222,9 +222,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     assess.add_argument(
         "--model",
-        default="claude-opus-4-6",
+        default="claude-haiku-4-5-20251001",
         metavar="MODEL",
-        help="Claude model ID (default: claude-opus-4-6)",
+        help="Claude model ID (default: claude-haiku-4-5-20251001)",
     )
     assess.add_argument(
         "--api-key",
