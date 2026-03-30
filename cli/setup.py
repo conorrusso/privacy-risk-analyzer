@@ -129,20 +129,106 @@ def _ask_bool(con: Console, prompt: str, default: bool = False) -> bool:
         con.print("  [red]Please enter y or n.[/]")
 
 
-def _ask_days(con: Console) -> int:
-    """Ask for a number of days (positive integer)."""
-    con.print("       [color(245)]Common: 30 · 60 · 90 · 180 · 365 · 730[/]\n")
+def _ask_cadence(
+    con: Console,
+    options: list[tuple[str, int]],
+    default_idx: int = 1,
+) -> int:
+    """Show numbered cadence options. Returns days (0 = no scheduled cadence).
+
+    Accepts:
+    - A number 1–N to select a preset option
+    - A larger integer to use as custom days
+    - Enter to accept the default
+    """
+    n_opts = len(options)
+    for i, (label, _) in enumerate(options, 1):
+        marker = "  [color(245)]← default[/]" if i == default_idx else ""
+        con.print(f"  [color(245)]{i}.[/] {label}{marker}")
+    con.print(f"\n  [color(245)]Or enter a custom number of days (e.g. 900)[/]")
+    default_days = options[default_idx - 1][1]
+    prompt = (
+        f"\n  [color(220)]Enter 1–{n_opts} or day count[/] "
+        f"[color(245)](default {default_idx}):[/] "
+    )
     while True:
-        raw = con.input("  [color(220)]Days[/] [color(245)](enter a number):[/] ").strip()
+        raw = con.input(prompt).strip()
         if not raw:
-            continue
+            return default_days
         try:
             n = int(raw)
-            if n > 0:
-                return n
+            if 1 <= n <= n_opts:
+                return options[n - 1][1]
+            if n > n_opts:
+                return n  # custom days
         except ValueError:
             pass
-        con.print("  [red]Please enter a positive whole number.[/]")
+        con.print(f"  [red]Enter a number 1–{n_opts} to choose an option, or a day count (e.g. 900).[/]")
+
+
+# Shared trigger options (label, config key)
+_TRIGGER_OPTIONS: list[tuple[str, str]] = [
+    ("Policy change detected",                  "policy_change"),
+    ("Vendor breach reported",                  "breach_reported"),
+    ("Regulatory change affecting this vendor", "regulatory_change"),
+    ("Contract renewal",                        "contract_renewal"),
+    ("Manual trigger only",                     "__manual__"),
+]
+
+
+def _ask_triggers(
+    con: Console,
+    defaults: list[str],
+) -> list[str]:
+    """Show trigger options with ◉/◯ for defaults. Returns selected config keys.
+
+    Selecting 'Manual trigger only' returns an empty list.
+    Pressing Enter accepts defaults.
+    Entering numbers replaces defaults entirely.
+    """
+    for i, (label, key) in enumerate(_TRIGGER_OPTIONS, 1):
+        if key in defaults:
+            con.print(f"  [color(220)]◉ {i}.[/] [color(250)]{label}[/]")
+        else:
+            con.print(f"  [color(245)]◯ {i}.[/] {label}")
+    con.print()
+    raw = con.input(
+        "  [color(220)]Enter numbers to select[/] "
+        "[color(245)](overrides defaults, or Enter to accept ◉):[/] "
+    ).strip()
+    if not raw:
+        return list(defaults)
+    try:
+        idxs = [int(x.strip()) for x in raw.replace(",", " ").split() if x.strip()]
+        selected_keys = [
+            _TRIGGER_OPTIONS[i - 1][1]
+            for i in idxs
+            if 1 <= i <= len(_TRIGGER_OPTIONS)
+        ]
+        if "__manual__" in selected_keys:
+            return []
+        return selected_keys
+    except (ValueError, IndexError):
+        return list(defaults)
+
+
+def _days_label(days: int) -> str:
+    """Convert a cadence day count to a human-readable string."""
+    if days == 0:
+        return "One time / on change"
+    _known = {
+        30: "Monthly", 60: "Every 2 months", 90: "Quarterly",
+        180: "Every 6 months", 365: "Every year",
+        548: "Every 18 months", 730: "Every 2 years",
+        1095: "Every 3 years", 1825: "Every 5 years",
+    }
+    if days in _known:
+        return _known[days]
+    months = round(days / 30.44)
+    if months < 24:
+        return f"Every ~{months} months"
+    y = days / 365.25
+    return f"Every ~{round(y, 1):.1g} years".replace(".0", "")
 
 
 def _section_header(con: Console, number: int, title: str, subtitle: str = "") -> None:
@@ -415,143 +501,153 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
             answers["review_team"] = _ask_single(con, "", team_options)
             _save_progress(answers, 16)
 
-        # Per-tier depth/cadence/trigger options (reused across HIGH/MEDIUM/LOW)
+        # Shared depth options (same labels for all tiers)
         _depth_options = [
-            "Full  — all 8 dimensions",
-            "Lightweight  — D1, D6, D7 only",
-            "Scan  — red flags only, no scoring",
-            "None  — skip re-assessment entirely",
+            ("Full assessment (all 8 dimensions)", "full"),
+            ("Lightweight (D1, D6, D7 only)",      "lightweight"),
+            ("Privacy policy scan (red flags only)", "scan"),
+            ("No automated assessment",             "none"),
         ]
-        _depth_vals = {1: "full", 2: "lightweight", 3: "scan", 4: "none"}
-        _trigger_options = [
-            "Policy change detected",
-            "Breach reported",
-            "Regulatory change",
-            "Contract renewal",
-        ]
-        _trigger_vals = {
-            "Policy change detected": "policy_change",
-            "Breach reported":        "breach_reported",
-            "Regulatory change":      "regulatory_change",
-            "Contract renewal":       "contract_renewal",
-        }
 
-        # ── HIGH risk tier ───────────────────────────────────────────
+        # ════════════════════════════════════════════════════════════
+        # HIGH RISK VENDORS
+        # ════════════════════════════════════════════════════════════
         if resume_from < 19:
             con.print()
-            con.print("[color(238)]  ── HIGH risk vendors ──────────────────────────────────[/]")
+            con.print("[bold color(196)]  ══ HIGH RISK VENDORS ══════════════════════════════════[/]")
             con.print()
 
         if resume_from < 17:
-            con.print("  [bold]Q17.[/] [color(250)]Re-assessment depth for HIGH risk vendors?[/]\n")
-            depth_val = _ask_single(con, "", _depth_options, default=1)
+            con.print("  [bold]Q17a.[/] [color(250)]Assessment depth for HIGH risk vendors?[/]\n")
             answers.setdefault("reassessment", {})
-            answers["reassessment"]["high"] = {"depth": _depth_vals[_depth_options.index(depth_val) + 1]}
+            for i, (label, _) in enumerate(_depth_options, 1):
+                marker = "  [color(245)]← default[/]" if i == 1 else ""
+                con.print(f"  [color(245)]{i}.[/] {label}{marker}")
+            raw_d = con.input("\n  [color(220)]Enter 1–4[/] [color(245)](default 1):[/] ").strip()
+            try:
+                di = int(raw_d) if raw_d else 1
+                depth = _depth_options[max(1, min(di, 4)) - 1][1]
+            except (ValueError, IndexError):
+                depth = "full"
+            answers["reassessment"]["high"] = {"depth": depth}
             _save_progress(answers, 17)
 
         if resume_from < 18:
             con.print()
-            con.print("  [bold]Q18.[/] [color(250)]Days between re-assessments for HIGH risk vendors?[/]")
-            days = _ask_days(con)
+            con.print("  [bold]Q17b.[/] [color(250)]How often do you reassess HIGH risk vendors?[/]\n")
+            _high_cadence = [
+                ("Every 6 months  (180 days)", 180),
+                ("Every year      (365 days)", 365),
+                ("Every 18 months (548 days)", 548),
+                ("Every 2 years   (730 days)", 730),
+                ("On policy change only",      0),
+                ("One time only — no re-assessment", 0),
+            ]
+            days = _ask_cadence(con, _high_cadence, default_idx=2)
             answers["reassessment"]["high"]["days"] = days
             _save_progress(answers, 18)
 
         if resume_from < 19:
             con.print()
-            con.print("  [bold]Q19.[/] [color(250)]Out-of-cycle triggers for HIGH risk vendors?[/]")
-            con.print("       [color(245)]Press Enter with no selection for manual-only.[/]\n")
-            for i, opt in enumerate(_trigger_options, 1):
-                con.print(f"  [color(245)]{i}.[/] {opt}")
-            raw_t = con.input("\n  [color(220)]Enter numbers, comma-separated[/] [color(245)](or Enter for none):[/] ").strip()
-            if raw_t:
-                try:
-                    idxs = [int(x.strip()) for x in raw_t.split(",") if x.strip()]
-                    sel = [_trigger_options[i - 1] for i in idxs if 1 <= i <= len(_trigger_options)]
-                except (ValueError, IndexError):
-                    sel = []
-            else:
-                sel = []
-            answers["reassessment"]["high"]["triggers"] = [_trigger_vals[s] for s in sel]
+            con.print("  [bold]Q17c.[/] [color(250)]What triggers an out-of-cycle reassessment for HIGH risk vendors?[/]\n")
+            triggers = _ask_triggers(con, defaults=["policy_change", "breach_reported", "regulatory_change"])
+            answers["reassessment"]["high"]["triggers"] = triggers
             _save_progress(answers, 19)
 
-        # ── MEDIUM risk tier ─────────────────────────────────────────
+        # ════════════════════════════════════════════════════════════
+        # MEDIUM RISK VENDORS
+        # ════════════════════════════════════════════════════════════
         if resume_from < 22:
             con.print()
-            con.print("[color(238)]  ── MEDIUM risk vendors ─────────────────────────────────[/]")
+            con.print("[bold color(220)]  ══ MEDIUM RISK VENDORS ════════════════════════════════[/]")
             con.print()
 
         if resume_from < 20:
-            con.print("  [bold]Q20.[/] [color(250)]Re-assessment depth for MEDIUM risk vendors?[/]\n")
-            depth_val = _ask_single(con, "", _depth_options, default=2)
-            answers["reassessment"]["medium"] = {"depth": _depth_vals[_depth_options.index(depth_val) + 1]}
+            con.print("  [bold]Q18a.[/] [color(250)]Assessment depth for MEDIUM risk vendors?[/]\n")
+            for i, (label, _) in enumerate(_depth_options, 1):
+                marker = "  [color(245)]← default[/]" if i == 1 else ""
+                con.print(f"  [color(245)]{i}.[/] {label}{marker}")
+            raw_d = con.input("\n  [color(220)]Enter 1–4[/] [color(245)](default 1):[/] ").strip()
+            try:
+                di = int(raw_d) if raw_d else 1
+                depth = _depth_options[max(1, min(di, 4)) - 1][1]
+            except (ValueError, IndexError):
+                depth = "full"
+            answers["reassessment"].setdefault("medium", {})["depth"] = depth
             _save_progress(answers, 20)
 
         if resume_from < 21:
             con.print()
-            con.print("  [bold]Q21.[/] [color(250)]Days between re-assessments for MEDIUM risk vendors?[/]")
-            days = _ask_days(con)
+            con.print("  [bold]Q18b.[/] [color(250)]How often do you reassess MEDIUM risk vendors?[/]\n")
+            _medium_cadence = [
+                ("Every year      (365 days)",  365),
+                ("Every 18 months (548 days)",  548),
+                ("Every 2 years   (730 days)",  730),
+                ("Every 3 years   (1095 days)", 1095),
+                ("Every 5 years   (1825 days)", 1825),
+                ("On policy change only",       0),
+                ("One time only — no re-assessment", 0),
+            ]
+            days = _ask_cadence(con, _medium_cadence, default_idx=3)
             answers["reassessment"]["medium"]["days"] = days
             _save_progress(answers, 21)
 
         if resume_from < 22:
             con.print()
-            con.print("  [bold]Q22.[/] [color(250)]Out-of-cycle triggers for MEDIUM risk vendors?[/]")
-            con.print("       [color(245)]Press Enter with no selection for manual-only.[/]\n")
-            for i, opt in enumerate(_trigger_options, 1):
-                con.print(f"  [color(245)]{i}.[/] {opt}")
-            raw_t = con.input("\n  [color(220)]Enter numbers, comma-separated[/] [color(245)](or Enter for none):[/] ").strip()
-            if raw_t:
-                try:
-                    idxs = [int(x.strip()) for x in raw_t.split(",") if x.strip()]
-                    sel = [_trigger_options[i - 1] for i in idxs if 1 <= i <= len(_trigger_options)]
-                except (ValueError, IndexError):
-                    sel = []
-            else:
-                sel = []
-            answers["reassessment"]["medium"]["triggers"] = [_trigger_vals[s] for s in sel]
+            con.print("  [bold]Q18c.[/] [color(250)]What triggers an out-of-cycle reassessment for MEDIUM risk vendors?[/]\n")
+            triggers = _ask_triggers(con, defaults=["policy_change", "breach_reported"])
+            answers["reassessment"]["medium"]["triggers"] = triggers
             _save_progress(answers, 22)
 
-        # ── LOW risk tier ────────────────────────────────────────────
+        # ════════════════════════════════════════════════════════════
+        # LOW RISK VENDORS
+        # ════════════════════════════════════════════════════════════
         if resume_from < 25:
             con.print()
-            con.print("[color(238)]  ── LOW risk vendors ────────────────────────────────────[/]")
+            con.print("[bold color(82)]  ══ LOW RISK VENDORS ═══════════════════════════════════[/]")
             con.print()
 
         if resume_from < 23:
-            con.print("  [bold]Q23.[/] [color(250)]Re-assessment depth for LOW risk vendors?[/]\n")
-            depth_val = _ask_single(con, "", _depth_options, default=3)
-            answers["reassessment"]["low"] = {"depth": _depth_vals[_depth_options.index(depth_val) + 1]}
+            con.print("  [bold]Q19a.[/] [color(250)]Assessment depth for LOW risk vendors?[/]\n")
+            for i, (label, _) in enumerate(_depth_options, 1):
+                marker = "  [color(245)]← default[/]" if i == 3 else ""
+                con.print(f"  [color(245)]{i}.[/] {label}{marker}")
+            raw_d = con.input("\n  [color(220)]Enter 1–4[/] [color(245)](default 3):[/] ").strip()
+            try:
+                di = int(raw_d) if raw_d else 3
+                depth = _depth_options[max(1, min(di, 4)) - 1][1]
+            except (ValueError, IndexError):
+                depth = "scan"
+            answers["reassessment"].setdefault("low", {})["depth"] = depth
             _save_progress(answers, 23)
 
         if resume_from < 24:
             con.print()
-            con.print("  [bold]Q24.[/] [color(250)]Days between re-assessments for LOW risk vendors?[/]")
-            days = _ask_days(con)
+            con.print("  [bold]Q19b.[/] [color(250)]How often do you reassess LOW risk vendors?[/]\n")
+            _low_cadence = [
+                ("Every year      (365 days)",  365),
+                ("Every 2 years   (730 days)",  730),
+                ("Every 3 years   (1095 days)", 1095),
+                ("Every 5 years   (1825 days)", 1825),
+                ("On policy change only",       0),
+                ("One time only — no re-assessment", 0),
+                ("Never",                       0),
+            ]
+            days = _ask_cadence(con, _low_cadence, default_idx=6)
             answers["reassessment"]["low"]["days"] = days
             _save_progress(answers, 24)
 
         if resume_from < 25:
             con.print()
-            con.print("  [bold]Q25.[/] [color(250)]Out-of-cycle triggers for LOW risk vendors?[/]")
-            con.print("       [color(245)]Press Enter with no selection for manual-only.[/]\n")
-            for i, opt in enumerate(_trigger_options, 1):
-                con.print(f"  [color(245)]{i}.[/] {opt}")
-            raw_t = con.input("\n  [color(220)]Enter numbers, comma-separated[/] [color(245)](or Enter for none):[/] ").strip()
-            if raw_t:
-                try:
-                    idxs = [int(x.strip()) for x in raw_t.split(",") if x.strip()]
-                    sel = [_trigger_options[i - 1] for i in idxs if 1 <= i <= len(_trigger_options)]
-                except (ValueError, IndexError):
-                    sel = []
-            else:
-                sel = []
-            answers["reassessment"]["low"]["triggers"] = [_trigger_vals[s] for s in sel]
+            con.print("  [bold]Q19c.[/] [color(250)]What triggers an out-of-cycle reassessment for LOW risk vendors?[/]\n")
+            triggers = _ask_triggers(con, defaults=["breach_reported"])
+            answers["reassessment"]["low"]["triggers"] = triggers
             _save_progress(answers, 25)
 
         # ── Maturity ─────────────────────────────────────────────────
         if resume_from < 26:
             con.print()
-            con.print("[color(238)]  ────────────────────────────────────────────────────────[/]")
+            con.print(Rule(style="color(238)"))
             con.print()
             con.print("  [bold]Q26.[/] [color(250)]What describes your current vendor assessment maturity?[/]\n")
             maturity_options = [
@@ -637,29 +733,63 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
 
         reassessment: dict = answers.get("reassessment") or {}
         _tier_color = {"HIGH": "color(196)", "MEDIUM": "color(220)", "LOW": "color(82)"}
-        _trigger_labels = {
+        _trigger_labels_map = {
             "policy_change":      "Policy change",
-            "breach_reported":    "Breach reported",
+            "breach_reported":    "Vendor breach",
             "regulatory_change":  "Regulatory change",
             "contract_renewal":   "Contract renewal",
         }
+        _depth_display = {
+            "full":        "Full assessment",
+            "lightweight": "Lightweight (D1, D6, D7)",
+            "scan":        "Privacy policy scan",
+            "none":        "No automated assessment",
+        }
+
         rt = Table(box=None, show_header=True, padding=(0, 2))
         rt.add_column("Tier",    style="bold", no_wrap=True, min_width=8)
         rt.add_column("Depth",   style="color(250)")
-        rt.add_column("Cadence", style="color(220)", justify="right")
-        rt.add_column("Triggers", style="color(245)")
+        rt.add_column("Cadence", style="color(220)")
         for tier_key, tier_label in (("high", "HIGH"), ("medium", "MEDIUM"), ("low", "LOW")):
             tc = reassessment.get(tier_key) or {}
-            depth = tc.get("depth", "—")
-            days = tc.get("days", "—")
-            cadence = f"{days}d" if isinstance(days, int) else str(days)
-            trig_list = [_trigger_labels.get(t, t) for t in (tc.get("triggers") or [])]
-            trig_str = ", ".join(trig_list) if trig_list else "manual only"
+            depth_str = _depth_display.get(tc.get("depth", "full"), tc.get("depth", "—"))
+            cadence_str = _days_label(tc.get("days", 365))
             rt.add_row(
                 f"[{_tier_color[tier_label]}]{tier_label}[/]",
-                depth, cadence, trig_str,
+                depth_str, cadence_str,
             )
-        con.print(Panel(rt, title="[bold color(172)]REASSESSMENT SCHEDULE[/]", border_style="color(238)"))
+
+        # Group triggers by tier for compact display
+        _trig_grouped: dict[tuple, list[str]] = {}
+        for tier_key, tier_label in (("high", "HIGH"), ("medium", "MEDIUM"), ("low", "LOW")):
+            tc = reassessment.get(tier_key) or {}
+            trig_key = tuple(tc.get("triggers") or [])
+            _trig_grouped.setdefault(trig_key, []).append(tier_label)
+
+        trig_lines = Text()
+        trig_lines.append("  Out-of-cycle triggers:\n", style="color(245)")
+        for trig_key, tier_labels in _trig_grouped.items():
+            tier_str = " + ".join(
+                f"[{_tier_color[t]}]{t}[/{_tier_color[t]}]" for t in tier_labels
+            )
+            if trig_key:
+                t_str = " · ".join(
+                    _trigger_labels_map.get(k, k) for k in trig_key
+                )
+            else:
+                t_str = "Manual only"
+            trig_lines.append(f"  ", style="")
+            trig_lines.append(tier_str + "  ")
+            trig_lines.append(t_str + "\n", style="color(245)")
+
+        sched_text = Text()
+        sched_text.append("  Reassessment schedule\n\n", style="bold color(245)")
+        con.print(Panel(
+            Text.assemble(sched_text, trig_lines),
+            title="[bold color(172)]REASSESSMENT SCHEDULE[/]",
+            border_style="color(238)",
+        ))
+        con.print(Panel(rt, border_style="color(238)"))
 
         if auto_escalate:
             esc_lines = Text()
@@ -787,20 +917,32 @@ def show_config(con: Console | None = None) -> None:
 
     from core.config import get_reassessment_config
     rc = get_reassessment_config(config)
-    _tl = {"policy_change": "Policy change", "breach_reported": "Breach reported",
-           "regulatory_change": "Regulatory change", "contract_renewal": "Contract renewal"}
+    _tl = {
+        "policy_change":     "Policy change",
+        "breach_reported":   "Vendor breach",
+        "regulatory_change": "Regulatory change",
+        "contract_renewal":  "Contract renewal",
+    }
     _tc = {"high": "color(196)", "medium": "color(220)", "low": "color(82)"}
+    _ddisplay = {
+        "full":        "Full assessment",
+        "lightweight": "Lightweight (D1, D6, D7)",
+        "scan":        "Privacy policy scan",
+        "none":        "No automated assessment",
+    }
     rct = Table(box=None, show_header=True, padding=(0, 2))
-    rct.add_column("Tier",    style="bold", no_wrap=True, min_width=8)
-    rct.add_column("Depth",   style="color(250)")
-    rct.add_column("Cadence", style="color(220)", justify="right")
+    rct.add_column("Tier",     style="bold", no_wrap=True, min_width=8)
+    rct.add_column("Depth",    style="color(250)")
+    rct.add_column("Cadence",  style="color(220)")
     rct.add_column("Triggers", style="color(245)")
     for tier_key in ("high", "medium", "low"):
         tc = rc[tier_key]
-        trig_str = ", ".join(_tl.get(t, t) for t in tc["triggers"]) or "manual only"
+        trig_str = " · ".join(_tl.get(t, t) for t in tc["triggers"]) or "manual only"
         rct.add_row(
             f"[{_tc[tier_key]}]{tier_key.upper()}[/]",
-            tc["depth"], f"{tc['days']}d", trig_str,
+            _ddisplay.get(tc["depth"], tc["depth"]),
+            _days_label(tc["days"]),
+            trig_str,
         )
     con.print(Panel(rct, title="[bold color(172)]REASSESSMENT SCHEDULE[/]", border_style="color(238)"))
 
