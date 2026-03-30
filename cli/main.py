@@ -331,7 +331,15 @@ def setup(reset: bool, show: bool) -> None:
                 con.print(f"  [color(245)]Removed existing config: {p}[/]")
                 break
 
-    run_wizard(con, reset=reset)
+    try:
+        run_wizard(con, reset=reset)
+    except KeyboardInterrupt:
+        con.print("\n  [bold color(196)]✗[/]  [color(245)]Setup cancelled.[/]\n")
+        sys.exit(0)
+    except Exception as exc:
+        con.print(f"\n  [bold color(196)]✗[/]  [color(245)]Setup error: {exc}[/]")
+        con.print("  [dim color(245)]Run [color(220)]bandit setup[/][dim color(245)] to try again.[/]\n")
+        sys.exit(1)
 
 
 # ─────────────────────────────────────────────────────────────────────

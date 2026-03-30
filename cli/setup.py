@@ -259,7 +259,8 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
         "Liberal       (higher thresholds — escalate only on HIGH)",
     ]
     appetite_val = _ask_single(con, "", appetite_options, default=2)
-    answers["risk_appetite"] = appetite_val.split()[0].lower()
+    _appetite_map = {1: "conservative", 2: "moderate", 3: "liberal"}
+    answers["risk_appetite"] = _appetite_map[appetite_options.index(appetite_val) + 1]
 
     con.print()
     con.print("  [bold]Q14.[/] [color(250)]At what risk tier should auto-escalation trigger?[/]")
@@ -307,7 +308,8 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
         "On-change only",
     ]
     cycle_val = _ask_single(con, "", cycle_options, default=2)
-    answers["reassess_cycle"] = int(cycle_val.split()[0].replace("On-change", "0"))
+    _reassess_map = {1: 90, 2: 180, 3: 365, 4: 0}
+    answers["reassess_cycle"] = _reassess_map[cycle_options.index(cycle_val) + 1]
 
     con.print()
     con.print("  [bold]Q18.[/] [color(250)]What describes your current vendor assessment maturity?[/]\n")
@@ -316,8 +318,9 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
         "Have a process (informal or spreadsheet-based)",
         "Mature programme (policy-driven, tool-supported)",
     ]
-    answers["maturity"] = _ask_single(con, "", maturity_options).split()[0:2]
-    answers["maturity"] = " ".join(answers["maturity"]).rstrip(".").lower()
+    maturity_val = _ask_single(con, "", maturity_options)
+    _maturity_map = {1: "just starting", 2: "have a process", 3: "mature programme"}
+    answers["maturity"] = _maturity_map[maturity_options.index(maturity_val) + 1]
 
     con.print()
     _section_summary(con, [
