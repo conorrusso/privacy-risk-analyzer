@@ -44,12 +44,16 @@ def _load_yaml_simple(path: pathlib.Path) -> dict | None:
 
     Fallback when pyyaml is not installed. Handles the exact structure
     that write_config() produces — not a general YAML parser.
+    Supports up to 3-level nesting (for the ``reassessment`` section).
     """
     try:
         result: dict = {}
-        current_section: dict | None = None
-        current_key: str | None = None
-        current_list: list | None = None
+        section_name: str | None = None
+        current_section: dict | None = None   # top-level section dict
+        current_key: str | None = None         # key at indent=2 within current_section
+        current_subsection: dict | None = None # dict at indent=2 (for reassessment tiers)
+        current_subkey: str | None = None      # key at indent=4 within current_subsection
+        current_list: list | None = None       # list currently being filled
 
         for raw in path.read_text().splitlines():
             line = raw.rstrip()
@@ -60,30 +64,52 @@ def _load_yaml_simple(path: pathlib.Path) -> dict | None:
                 continue
 
             if indent == 0:
-                # Top-level section key
                 if stripped.endswith(":"):
-                    key = stripped[:-1]
-                    result[key] = {}
-                    current_section = result[key]
+                    section_name = stripped[:-1]
+                    if section_name == "auto_escalate":
+                        result[section_name] = []
+                        current_section = None
+                    else:
+                        result[section_name] = {}
+                        current_section = result[section_name]
                     current_key = None
+                    current_subsection = None
+                    current_subkey = None
                     current_list = None
-            elif indent == 2 and current_section is not None:
-                if stripped.startswith("- "):
-                    # Top-level list item (shouldn't happen in our format)
-                    pass
-                elif ":" in stripped:
+
+            elif indent == 2:
+                if section_name == "auto_escalate":
+                    if stripped.startswith("- "):
+                        entry: dict = {}
+                        result["auto_escalate"].append(entry)
+                        current_section = entry
+                        k, _, v = stripped[2:].partition(":")
+                        v = v.strip().strip('"').strip("'")
+                        if v:
+                            current_section[k.strip()] = v
+                    elif current_section is not None and ":" in stripped:
+                        k, _, v = stripped.partition(":")
+                        current_section[k.strip()] = v.strip().strip('"').strip("'")
+                elif current_section is not None and ":" in stripped:
                     k, _, v = stripped.partition(":")
                     k = k.strip()
                     v = v.strip().strip('"').strip("'")
                     if not v:
-                        # Starts a sub-section or list
-                        current_key = k
-                        current_list = []
-                        current_section[k] = current_list
+                        if section_name == "reassessment":
+                            # k is a tier key (high / medium / low)
+                            current_section[k] = {}
+                            current_subsection = current_section[k]
+                            current_key = k
+                            current_list = None
+                        else:
+                            current_key = k
+                            current_list = []
+                            current_section[k] = current_list
+                            current_subsection = None
                     else:
                         current_key = k
                         current_list = None
-                        # Parse booleans and numbers
+                        current_subsection = None
                         if v == "true":
                             current_section[k] = True
                         elif v == "false":
@@ -93,12 +119,28 @@ def _load_yaml_simple(path: pathlib.Path) -> dict | None:
                                 current_section[k] = float(v) if "." in v else int(v)
                             except ValueError:
                                 current_section[k] = v
-            elif indent == 4 and current_section is not None:
-                if stripped.startswith("- "):
+
+            elif indent == 4:
+                if current_subsection is not None and ":" in stripped:
+                    # Inside reassessment.tier — parse depth/days/triggers
+                    k, _, v = stripped.partition(":")
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if not v:
+                        current_subkey = k
+                        current_list = []
+                        current_subsection[k] = current_list
+                    else:
+                        current_subkey = k
+                        current_list = None
+                        try:
+                            current_subsection[k] = float(v) if "." in v else int(v)
+                        except ValueError:
+                            current_subsection[k] = v
+                elif stripped.startswith("- ") and current_list is not None and current_subsection is None:
                     val = stripped[2:].strip().strip('"').strip("'")
-                    if current_list is not None:
-                        current_list.append(val)
-                elif ":" in stripped and current_key == "weights":
+                    current_list.append(val)
+                elif ":" in stripped and current_key == "weights" and current_section is not None:
                     k, _, v = stripped.partition(":")
                     weights = current_section.setdefault("weights", {})
                     try:
@@ -106,16 +148,29 @@ def _load_yaml_simple(path: pathlib.Path) -> dict | None:
                     except ValueError:
                         pass
 
+            elif indent == 6:
+                # List items inside reassessment.tier.triggers
+                if stripped.startswith("- ") and current_list is not None:
+                    val = stripped[2:].strip().strip('"').strip("'")
+                    current_list.append(val)
+
         return result if result else None
     except Exception:
         return None
 
 
-def write_config(path: pathlib.Path, profile: dict, auto_escalate: list) -> None:
+def write_config(
+    path: pathlib.Path,
+    profile: dict,
+    auto_escalate: list,
+    reassessment: dict | None = None,
+) -> None:
     """Write bandit.config.yml to path."""
     try:
         import yaml
-        data = {"profile": profile}
+        data: dict = {"profile": profile}
+        if reassessment:
+            data["reassessment"] = reassessment
         if auto_escalate:
             data["auto_escalate"] = auto_escalate
         path.write_text(yaml.dump(data, default_flow_style=False, allow_unicode=True))
@@ -140,6 +195,18 @@ def write_config(path: pathlib.Path, profile: dict, auto_escalate: list) -> None
             lines.append(f"  {k}: {v}")
         else:
             lines.append(f"  {k}: \"{v}\"")
+
+    if reassessment:
+        lines.append("")
+        lines.append("reassessment:")
+        for tier, tier_cfg in reassessment.items():
+            lines.append(f"  {tier}:")
+            lines.append(f"    depth: {tier_cfg.get('depth', 'full')}")
+            lines.append(f"    days: {tier_cfg.get('days', 365)}")
+            triggers = tier_cfg.get("triggers") or []
+            lines.append("    triggers:")
+            for t in triggers:
+                lines.append(f"      - {t}")
 
     if auto_escalate:
         lines.append("")
@@ -233,6 +300,33 @@ def is_auto_escalate(result: Any, config: dict[str, Any] | None = None) -> tuple
             if result.weighted_average < threshold:
                 reasons.append(trigger.get("label", f"Weighted average {result.weighted_average} < {threshold}"))
     return bool(reasons), reasons
+
+
+def get_reassessment_config(config: dict[str, Any] | None = None) -> dict[str, dict]:
+    """Return per-tier reassessment configuration with defaults.
+
+    Returns a dict keyed by ``"high"``, ``"medium"``, ``"low"``, each containing:
+    - ``depth``    — ``"full"`` | ``"lightweight"`` | ``"scan"`` | ``"none"``
+    - ``days``     — int, cadence in days
+    - ``triggers`` — list of trigger identifiers
+    """
+    if config is None:
+        config = load_config()
+    rc = (config or {}).get("reassessment") or {}
+    _defaults: dict[str, dict] = {
+        "high":   {"depth": "full",        "days": 90,  "triggers": ["policy_change", "breach_reported"]},
+        "medium": {"depth": "lightweight",  "days": 180, "triggers": ["policy_change"]},
+        "low":    {"depth": "scan",         "days": 365, "triggers": []},
+    }
+    result: dict[str, dict] = {}
+    for tier in ("high", "medium", "low"):
+        tier_cfg = rc.get(tier) or {}
+        result[tier] = {
+            "depth":    tier_cfg.get("depth",    _defaults[tier]["depth"]),
+            "days":     int(tier_cfg.get("days", _defaults[tier]["days"])),
+            "triggers": tier_cfg.get("triggers", list(_defaults[tier]["triggers"])),
+        }
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -20,9 +20,38 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import sys
 
 import click
+
+_HISTORY_PATH = pathlib.Path.home() / ".bandit" / "vendor-history.json"
+
+
+def _load_history() -> dict:
+    try:
+        if _HISTORY_PATH.exists():
+            with open(_HISTORY_PATH) as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _save_history(slug: str, risk_tier: str, weighted_average: float) -> None:
+    import datetime
+    history = _load_history()
+    history[slug] = {
+        "last_assessed": datetime.date.today().isoformat(),
+        "risk_tier": risk_tier,
+        "weighted_average": weighted_average,
+    }
+    try:
+        _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_HISTORY_PATH, "w") as f:
+            json.dump(history, f, indent=2)
+    except Exception:
+        pass
 
 
 def _load_dotenv() -> None:
@@ -88,6 +117,7 @@ def main(ctx: click.Context) -> None:
 @click.option("-v", "--verbose", is_flag=True, help="Show discovery stages and extra detail")
 @click.option("--no-report", is_flag=True, help="Skip saving the HTML report")
 @click.option("--dpa", default=None, metavar="PATH", help="Path to vendor DPA document (PDF or text)")
+@click.option("--force", is_flag=True, help="Run assessment even if cadence says not due")
 def assess(
     vendor: tuple,
     model: str,
@@ -96,6 +126,7 @@ def assess(
     verbose: bool,
     no_report: bool,
     dpa: str | None,
+    force: bool,
 ) -> None:
     """Assess a vendor's privacy practices.
 
@@ -110,7 +141,6 @@ def assess(
       bandit assess "Acme Corp" --no-report
     """
     import datetime
-    import pathlib
     from cli.terminal import assessment_progress, console, print_assessment
     from core.agents.privacy_bandit import PrivacyBandit
     from core.llm.anthropic import AnthropicProvider
@@ -139,6 +169,43 @@ def assess(
             console.print(f"  [color(245)]Profile:[/] [color(220)]{_label}[/]")
 
     vendor_str = " ".join(vendor)
+
+    # ── Cadence check ─────────────────────────────────────────────────
+    from core.config import get_reassessment_config
+    slug = _vendor_slug(vendor_str)
+    history = _load_history()
+    if slug in history and not force:
+        entry = history[slug]
+        last_tier = entry.get("risk_tier", "LOW")
+        last_date_str = entry.get("last_assessed", "")
+        _rc = get_reassessment_config(_config)
+        tier_cfg = _rc.get(last_tier.lower(), {"depth": "full", "days": 365, "triggers": []})
+        cadence_days = tier_cfg["days"]
+        depth = tier_cfg["depth"]
+        if depth == "none":
+            console.print(
+                f"\n  [color(220)]Cadence:[/] [color(245)]Re-assessment depth for {last_tier} vendors is set to [color(220)]none[/][color(245)] — skipping.[/]"
+            )
+            console.print("  [color(245)]Use [color(220)]--force[/][color(245)] to run anyway.[/]\n")
+            sys.exit(0)
+        if last_date_str and cadence_days > 0:
+            try:
+                last_date = datetime.date.fromisoformat(last_date_str)
+                days_since = (datetime.date.today() - last_date).days
+                days_remaining = cadence_days - days_since
+                if days_remaining > 0:
+                    due_date = (last_date + datetime.timedelta(days=cadence_days)).strftime("%B %d, %Y")
+                    console.print(
+                        f"\n  [color(220)]Cadence:[/] [color(245)]{vendor_str} was last assessed {days_since}d ago "
+                        f"(tier: {last_tier}, cadence: {cadence_days}d).[/]"
+                    )
+                    console.print(f"  [color(245)]Next assessment due: [color(220)]{due_date}[/] "
+                                  f"[color(245)]({days_remaining}d from now)[/]")
+                    console.print("  [color(245)]Use [color(220)]--force[/][color(245)] to run early.\n[/]")
+                    sys.exit(0)
+            except ValueError:
+                pass
+
     provider = AnthropicProvider(model=model, api_key=api_key)
 
     try:
@@ -165,16 +232,17 @@ def assess(
 
     # ── HTML report (always, unless --no-report) ──────────────────────
     if not no_report:
-        date = datetime.date.today().isoformat()
-        slug = _vendor_slug(vendor_str)
         reports_dir = pathlib.Path("reports")
         reports_dir.mkdir(exist_ok=True)
-        report_path = reports_dir / f"{slug}-{date}.html"
+        report_path = reports_dir / f"{slug}-{datetime.date.today().isoformat()}.html"
         from cli.report import write_html_report
         write_html_report(report_path, assessment)
         console.print(
             f"\n  [color(243)]Report saved →[/] [color(172)]{report_path}[/]"
         )
+
+    # ── Save to vendor history ────────────────────────────────────────
+    _save_history(slug, assessment.result.risk_tier, assessment.result.weighted_average)
 
     # Tip when no profile configured
     if not _config:

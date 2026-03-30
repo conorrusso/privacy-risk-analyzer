@@ -129,6 +129,22 @@ def _ask_bool(con: Console, prompt: str, default: bool = False) -> bool:
         con.print("  [red]Please enter y or n.[/]")
 
 
+def _ask_days(con: Console) -> int:
+    """Ask for a number of days (positive integer)."""
+    con.print("       [color(245)]Common: 30 · 60 · 90 · 180 · 365 · 730[/]\n")
+    while True:
+        raw = con.input("  [color(220)]Days[/] [color(245)](enter a number):[/] ").strip()
+        if not raw:
+            continue
+        try:
+            n = int(raw)
+            if n > 0:
+                return n
+        except ValueError:
+            pass
+        con.print("  [red]Please enter a positive whole number.[/]")
+
+
 def _section_header(con: Console, number: int, title: str, subtitle: str = "") -> None:
     con.print()
     con.print(Rule(style="color(238)"))
@@ -181,7 +197,7 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
                 con.print()
                 con.print(
                     f"  [color(220)]Incomplete setup found[/] "
-                    f"[color(245)](last completed: Q{last_q}/18)[/]\n"
+                    f"[color(245)](last completed: Q{last_q}/26)[/]\n"
                 )
                 con.print(f"  [color(245)]r)[/]  Resume from Q{last_q + 1}")
                 con.print(f"  [color(245)]s)[/]  Start over")
@@ -382,9 +398,9 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
                 ("AI training flag", "Escalate always" if answers["ai_escalate"] else "Follow risk tier"),
             ])
 
-        # ── Section 6 — Team context ─────────────────────────────────
-        if resume_from < 18:
-            _section_header(con, 6, "Team context")
+        # ── Section 6 — Team context & reassessment ──────────────────
+        if resume_from < 26:
+            _section_header(con, 6, "Team context & reassessment")
 
         if resume_from < 16:
             con.print("  [bold]Q16.[/] [color(250)]Who typically reviews vendor assessments at your organisation?[/]\n")
@@ -399,23 +415,145 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
             answers["review_team"] = _ask_single(con, "", team_options)
             _save_progress(answers, 16)
 
-        if resume_from < 17:
+        # Per-tier depth/cadence/trigger options (reused across HIGH/MEDIUM/LOW)
+        _depth_options = [
+            "Full  — all 8 dimensions",
+            "Lightweight  — D1, D6, D7 only",
+            "Scan  — red flags only, no scoring",
+            "None  — skip re-assessment entirely",
+        ]
+        _depth_vals = {1: "full", 2: "lightweight", 3: "scan", 4: "none"}
+        _trigger_options = [
+            "Policy change detected",
+            "Breach reported",
+            "Regulatory change",
+            "Contract renewal",
+        ]
+        _trigger_vals = {
+            "Policy change detected": "policy_change",
+            "Breach reported":        "breach_reported",
+            "Regulatory change":      "regulatory_change",
+            "Contract renewal":       "contract_renewal",
+        }
+
+        # ── HIGH risk tier ───────────────────────────────────────────
+        if resume_from < 19:
             con.print()
-            con.print("  [bold]Q17.[/] [color(250)]What is your target re-assessment cycle for active vendors?[/]\n")
-            cycle_options = [
-                "90 days  (HIGH risk focus)",
-                "180 days (standard)",
-                "Annual   (once per year)",
-                "On-change only",
-            ]
-            cycle_val = _ask_single(con, "", cycle_options, default=2)
-            _reassess_map = {1: 90, 2: 180, 3: 365, 4: 0}
-            answers["reassess_cycle"] = _reassess_map[cycle_options.index(cycle_val) + 1]
+            con.print("[color(238)]  ── HIGH risk vendors ──────────────────────────────────[/]")
+            con.print()
+
+        if resume_from < 17:
+            con.print("  [bold]Q17.[/] [color(250)]Re-assessment depth for HIGH risk vendors?[/]\n")
+            depth_val = _ask_single(con, "", _depth_options, default=1)
+            answers.setdefault("reassessment", {})
+            answers["reassessment"]["high"] = {"depth": _depth_vals[_depth_options.index(depth_val) + 1]}
             _save_progress(answers, 17)
 
         if resume_from < 18:
             con.print()
-            con.print("  [bold]Q18.[/] [color(250)]What describes your current vendor assessment maturity?[/]\n")
+            con.print("  [bold]Q18.[/] [color(250)]Days between re-assessments for HIGH risk vendors?[/]")
+            days = _ask_days(con)
+            answers["reassessment"]["high"]["days"] = days
+            _save_progress(answers, 18)
+
+        if resume_from < 19:
+            con.print()
+            con.print("  [bold]Q19.[/] [color(250)]Out-of-cycle triggers for HIGH risk vendors?[/]")
+            con.print("       [color(245)]Press Enter with no selection for manual-only.[/]\n")
+            for i, opt in enumerate(_trigger_options, 1):
+                con.print(f"  [color(245)]{i}.[/] {opt}")
+            raw_t = con.input("\n  [color(220)]Enter numbers, comma-separated[/] [color(245)](or Enter for none):[/] ").strip()
+            if raw_t:
+                try:
+                    idxs = [int(x.strip()) for x in raw_t.split(",") if x.strip()]
+                    sel = [_trigger_options[i - 1] for i in idxs if 1 <= i <= len(_trigger_options)]
+                except (ValueError, IndexError):
+                    sel = []
+            else:
+                sel = []
+            answers["reassessment"]["high"]["triggers"] = [_trigger_vals[s] for s in sel]
+            _save_progress(answers, 19)
+
+        # ── MEDIUM risk tier ─────────────────────────────────────────
+        if resume_from < 22:
+            con.print()
+            con.print("[color(238)]  ── MEDIUM risk vendors ─────────────────────────────────[/]")
+            con.print()
+
+        if resume_from < 20:
+            con.print("  [bold]Q20.[/] [color(250)]Re-assessment depth for MEDIUM risk vendors?[/]\n")
+            depth_val = _ask_single(con, "", _depth_options, default=2)
+            answers["reassessment"]["medium"] = {"depth": _depth_vals[_depth_options.index(depth_val) + 1]}
+            _save_progress(answers, 20)
+
+        if resume_from < 21:
+            con.print()
+            con.print("  [bold]Q21.[/] [color(250)]Days between re-assessments for MEDIUM risk vendors?[/]")
+            days = _ask_days(con)
+            answers["reassessment"]["medium"]["days"] = days
+            _save_progress(answers, 21)
+
+        if resume_from < 22:
+            con.print()
+            con.print("  [bold]Q22.[/] [color(250)]Out-of-cycle triggers for MEDIUM risk vendors?[/]")
+            con.print("       [color(245)]Press Enter with no selection for manual-only.[/]\n")
+            for i, opt in enumerate(_trigger_options, 1):
+                con.print(f"  [color(245)]{i}.[/] {opt}")
+            raw_t = con.input("\n  [color(220)]Enter numbers, comma-separated[/] [color(245)](or Enter for none):[/] ").strip()
+            if raw_t:
+                try:
+                    idxs = [int(x.strip()) for x in raw_t.split(",") if x.strip()]
+                    sel = [_trigger_options[i - 1] for i in idxs if 1 <= i <= len(_trigger_options)]
+                except (ValueError, IndexError):
+                    sel = []
+            else:
+                sel = []
+            answers["reassessment"]["medium"]["triggers"] = [_trigger_vals[s] for s in sel]
+            _save_progress(answers, 22)
+
+        # ── LOW risk tier ────────────────────────────────────────────
+        if resume_from < 25:
+            con.print()
+            con.print("[color(238)]  ── LOW risk vendors ────────────────────────────────────[/]")
+            con.print()
+
+        if resume_from < 23:
+            con.print("  [bold]Q23.[/] [color(250)]Re-assessment depth for LOW risk vendors?[/]\n")
+            depth_val = _ask_single(con, "", _depth_options, default=3)
+            answers["reassessment"]["low"] = {"depth": _depth_vals[_depth_options.index(depth_val) + 1]}
+            _save_progress(answers, 23)
+
+        if resume_from < 24:
+            con.print()
+            con.print("  [bold]Q24.[/] [color(250)]Days between re-assessments for LOW risk vendors?[/]")
+            days = _ask_days(con)
+            answers["reassessment"]["low"]["days"] = days
+            _save_progress(answers, 24)
+
+        if resume_from < 25:
+            con.print()
+            con.print("  [bold]Q25.[/] [color(250)]Out-of-cycle triggers for LOW risk vendors?[/]")
+            con.print("       [color(245)]Press Enter with no selection for manual-only.[/]\n")
+            for i, opt in enumerate(_trigger_options, 1):
+                con.print(f"  [color(245)]{i}.[/] {opt}")
+            raw_t = con.input("\n  [color(220)]Enter numbers, comma-separated[/] [color(245)](or Enter for none):[/] ").strip()
+            if raw_t:
+                try:
+                    idxs = [int(x.strip()) for x in raw_t.split(",") if x.strip()]
+                    sel = [_trigger_options[i - 1] for i in idxs if 1 <= i <= len(_trigger_options)]
+                except (ValueError, IndexError):
+                    sel = []
+            else:
+                sel = []
+            answers["reassessment"]["low"]["triggers"] = [_trigger_vals[s] for s in sel]
+            _save_progress(answers, 25)
+
+        # ── Maturity ─────────────────────────────────────────────────
+        if resume_from < 26:
+            con.print()
+            con.print("[color(238)]  ────────────────────────────────────────────────────────[/]")
+            con.print()
+            con.print("  [bold]Q26.[/] [color(250)]What describes your current vendor assessment maturity?[/]\n")
             maturity_options = [
                 "Just starting  (building a programme from scratch)",
                 "Have a process (informal or spreadsheet-based)",
@@ -424,12 +562,11 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
             maturity_val = _ask_single(con, "", maturity_options)
             _maturity_map = {1: "just starting", 2: "have a process", 3: "mature programme"}
             answers["maturity"] = _maturity_map[maturity_options.index(maturity_val) + 1]
-            _save_progress(answers, 18)
+            _save_progress(answers, 26)
             con.print()
             _section_summary(con, [
-                ("Review team",      answers["review_team"]),
-                ("Re-assess cycle",  f"{answers['reassess_cycle']} days" if answers["reassess_cycle"] else "On-change"),
-                ("Maturity",         answers["maturity"].capitalize()),
+                ("Review team", answers["review_team"]),
+                ("Maturity",    answers["maturity"].capitalize()),
             ])
 
         # ── Calculate weights ─────────────────────────────────────────
@@ -498,6 +635,32 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
             border_style="color(238)",
         ))
 
+        reassessment: dict = answers.get("reassessment") or {}
+        _tier_color = {"HIGH": "color(196)", "MEDIUM": "color(220)", "LOW": "color(82)"}
+        _trigger_labels = {
+            "policy_change":      "Policy change",
+            "breach_reported":    "Breach reported",
+            "regulatory_change":  "Regulatory change",
+            "contract_renewal":   "Contract renewal",
+        }
+        rt = Table(box=None, show_header=True, padding=(0, 2))
+        rt.add_column("Tier",    style="bold", no_wrap=True, min_width=8)
+        rt.add_column("Depth",   style="color(250)")
+        rt.add_column("Cadence", style="color(220)", justify="right")
+        rt.add_column("Triggers", style="color(245)")
+        for tier_key, tier_label in (("high", "HIGH"), ("medium", "MEDIUM"), ("low", "LOW")):
+            tc = reassessment.get(tier_key) or {}
+            depth = tc.get("depth", "—")
+            days = tc.get("days", "—")
+            cadence = f"{days}d" if isinstance(days, int) else str(days)
+            trig_list = [_trigger_labels.get(t, t) for t in (tc.get("triggers") or [])]
+            trig_str = ", ".join(trig_list) if trig_list else "manual only"
+            rt.add_row(
+                f"[{_tier_color[tier_label]}]{tier_label}[/]",
+                depth, cadence, trig_str,
+            )
+        con.print(Panel(rt, title="[bold color(172)]REASSESSMENT SCHEDULE[/]", border_style="color(238)"))
+
         if auto_escalate:
             esc_lines = Text()
             for t in auto_escalate:
@@ -532,13 +695,12 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
             "childrens_data": answers["childrens_data"],
             "special_categories": answers["special_categories"],
             "ai_vendors": answers["ai_vendors"],
-            "reassess_cycle": answers["reassess_cycle"],
             "review_team": answers["review_team"],
             "maturity": answers["maturity"],
             "weights": {k: float(v) for k, v in weights.items()},
         }
 
-        write_config(config_path, profile, auto_escalate)
+        write_config(config_path, profile, auto_escalate, reassessment)
         _clear_progress()
 
         con.print()
@@ -553,7 +715,7 @@ def run_wizard(con: Console | None = None, reset: bool = False) -> None:
         if progress and progress.get("last_completed_question", 0) > 0:
             last_q = progress["last_completed_question"]
             con.print(
-                f"\n\n  [color(245)]Setup paused at Q{last_q}. "
+                f"\n\n  [color(245)]Setup paused at Q{last_q}/26. "
                 f"Run [color(220)]bandit setup[/][color(245)] to resume.[/]\n"
             )
         else:
@@ -587,18 +749,17 @@ def show_config(con: Console | None = None) -> None:
     t.add_column(style="color(245)", no_wrap=True, min_width=22)
     t.add_column(style="color(220)")
 
-    t.add_row("Profile name",    profile.get("name", "—"))
-    t.add_row("Industry",        profile.get("industry", "—"))
-    t.add_row("HQ region",       profile.get("hq_region", "—"))
-    t.add_row("Customers",       ", ".join(profile.get("customer_regions") or []))
-    t.add_row("Regulations",     ", ".join(profile.get("regulations") or []))
-    t.add_row("Risk appetite",   (profile.get("risk_appetite") or "—").capitalize())
-    t.add_row("DPO present",     "Yes" if profile.get("dpo_present") else "No")
-    t.add_row("PHI in scope",    "Yes" if profile.get("phi_in_scope") else "No")
-    t.add_row("PCI in scope",    "Yes" if profile.get("pci_in_scope") else "No")
-    t.add_row("AI vendors",      "Yes" if profile.get("ai_vendors") else "No")
-    t.add_row("Re-assess cycle", f"{profile['reassess_cycle']} days" if profile.get("reassess_cycle") else "On-change")
-    t.add_row("Config file",     str(config_path) if config_path else "—")
+    t.add_row("Profile name",  profile.get("name", "—"))
+    t.add_row("Industry",      profile.get("industry", "—"))
+    t.add_row("HQ region",     profile.get("hq_region", "—"))
+    t.add_row("Customers",     ", ".join(profile.get("customer_regions") or []))
+    t.add_row("Regulations",   ", ".join(profile.get("regulations") or []))
+    t.add_row("Risk appetite", (profile.get("risk_appetite") or "—").capitalize())
+    t.add_row("DPO present",   "Yes" if profile.get("dpo_present") else "No")
+    t.add_row("PHI in scope",  "Yes" if profile.get("phi_in_scope") else "No")
+    t.add_row("PCI in scope",  "Yes" if profile.get("pci_in_scope") else "No")
+    t.add_row("AI vendors",    "Yes" if profile.get("ai_vendors") else "No")
+    t.add_row("Config file",   str(config_path) if config_path else "—")
 
     con.print()
     con.print(Panel(t, title=f"[bold color(172)]BANDIT PROFILE — {label or 'Active'}[/]", border_style="color(238)"))
@@ -623,6 +784,25 @@ def show_config(con: Console | None = None) -> None:
         wt.add_row(f"{dim_key} {name}", f"×{pw:.1f}", diff_str)
 
     con.print(Panel(wt, title="[bold color(172)]DIMENSION WEIGHTS[/]", border_style="color(238)"))
+
+    from core.config import get_reassessment_config
+    rc = get_reassessment_config(config)
+    _tl = {"policy_change": "Policy change", "breach_reported": "Breach reported",
+           "regulatory_change": "Regulatory change", "contract_renewal": "Contract renewal"}
+    _tc = {"high": "color(196)", "medium": "color(220)", "low": "color(82)"}
+    rct = Table(box=None, show_header=True, padding=(0, 2))
+    rct.add_column("Tier",    style="bold", no_wrap=True, min_width=8)
+    rct.add_column("Depth",   style="color(250)")
+    rct.add_column("Cadence", style="color(220)", justify="right")
+    rct.add_column("Triggers", style="color(245)")
+    for tier_key in ("high", "medium", "low"):
+        tc = rc[tier_key]
+        trig_str = ", ".join(_tl.get(t, t) for t in tc["triggers"]) or "manual only"
+        rct.add_row(
+            f"[{_tc[tier_key]}]{tier_key.upper()}[/]",
+            tc["depth"], f"{tc['days']}d", trig_str,
+        )
+    con.print(Panel(rct, title="[bold color(172)]REASSESSMENT SCHEDULE[/]", border_style="color(238)"))
 
     triggers = config.get("auto_escalate") or []
     if triggers:

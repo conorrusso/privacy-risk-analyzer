@@ -503,11 +503,34 @@ def _team_summary(result, assessment) -> str:
         esc_reasons = getattr(result, "escalation_reasons", [])
         detail = " · ".join(esc_reasons) if esc_reasons else "Auto-escalation triggered."
 
-    high_dims     = [k for k, dr in result.dimensions.items() if dr.capped_score <= 2]
-    def_dims      = [k for k, dr in result.dimensions.items() if dr.capped_score == 3]
-    total_gaps    = sum(len(_all_gaps(k, dr)) for k, dr in result.dimensions.items())
-    reassess_days = {"HIGH": 90, "MEDIUM": 180, "LOW": 365}.get(result.risk_tier, 365)
+    high_dims  = [k for k, dr in result.dimensions.items() if dr.capped_score <= 2]
+    def_dims   = [k for k, dr in result.dimensions.items() if dr.capped_score == 3]
+    total_gaps = sum(len(_all_gaps(k, dr)) for k, dr in result.dimensions.items())
+
+    from core.config import get_reassessment_config, load_config
+    _rc = get_reassessment_config(load_config())
+    _tier_cfg  = _rc.get(result.risk_tier.lower(), {"depth": "full", "days": 365, "triggers": []})
+    reassess_days = _tier_cfg["days"]
     reassess_date = (datetime.date.today() + datetime.timedelta(days=reassess_days)).strftime("%B %Y")
+    _depth_label_map = {
+        "full":        "Full (8 dimensions)",
+        "lightweight": "Lightweight (D1, D6, D7)",
+        "scan":        "Scan (red flags only)",
+        "none":        "Skip",
+    }
+    depth_label = _depth_label_map.get(_tier_cfg["depth"], _tier_cfg["depth"])
+    _trigger_label_map = {
+        "policy_change":     "Policy change",
+        "breach_reported":   "Breach reported",
+        "regulatory_change": "Regulatory change",
+        "contract_renewal":  "Contract renewal",
+    }
+    triggers_html = ""
+    if _tier_cfg["triggers"]:
+        triggers_html = "".join(
+            f'<div style="font-size:11px;padding:1px 0">✓ {_trigger_label_map.get(t, t)}</div>'
+            for t in _tier_cfg["triggers"]
+        )
 
     def row(k: str, v: str, vc: str = "") -> str:
         style = f' style="color:{vc};font-weight:700"' if vc else ""
@@ -521,6 +544,12 @@ def _team_summary(result, assessment) -> str:
         )
         esc_row = f'<div class="tp-row"><span class="tp-k">Escalation reasons</span><span class="tp-v">{esc_list}</span></div>'
 
+    cadence_note = f"{reassess_days}d cadence · {result.risk_tier} profile"
+    triggers_row = (
+        f'<div class="tp-row"><span class="tp-k">Out-of-cycle triggers</span>'
+        f'<span class="tp-v">{triggers_html}</span></div>'
+        if triggers_html else ""
+    )
     grc = f"""<div class="tp">
   <div class="tp-hdr" style="background:#4A2E1A">FOR GRC</div>
   <div class="tp-body">
@@ -528,10 +557,12 @@ def _team_summary(result, assessment) -> str:
     {row("Detail", _h(detail))}
     {esc_row}
     {row("Risk tier", f'{result.risk_tier}  {result.weighted_average}/5.0', a_color)}
+    {row("Assessment depth", _h(depth_label))}
     {row("High-risk dims (≤2)", _h(", ".join(high_dims)) if high_dims else "None")}
     {row("Deficient dims (3)", _h(", ".join(def_dims)) if def_dims else "None")}
     {row("Total signal gaps", str(total_gaps))}
-    {row("Re-assess by", reassess_date)}
+    {row("Re-assess by", f'{reassess_date} <span style="color:#8B7355;font-size:11px">({cadence_note})</span>')}
+    {triggers_row}
   </div>
 </div>"""
 
