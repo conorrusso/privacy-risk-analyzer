@@ -1,5 +1,17 @@
 # Bandit CLI Reference
 
+## Quick reference
+
+| Command | What it does |
+|---------|-------------|
+| `bandit assess "Vendor"` | Assess a single vendor's privacy practices |
+| `bandit setup` | Run the setup wizard (configure weights & escalation) |
+| `bandit setup --show` | Print your current profile |
+| `bandit setup --reset` | Start the wizard over |
+| `bandit batch vendors.txt` | Assess a list of vendors from a file |
+| `bandit rubric` | Show the full scoring rubric |
+| `bandit rubric --dim D6` | Show detail for one dimension |
+
 ---
 
 ## Installation
@@ -58,6 +70,7 @@ bandit assess <vendor> [OPTIONS]
 | `--json` | off | Print raw JSON to stdout (report still saved) |
 | `-v`, `--verbose` | off | Show discovery stages, fetched pages, and signal detail |
 | `--no-report` | off | Skip saving the HTML report |
+| `--force` | off | Run assessment even if cadence says vendor is not due yet |
 | `--dpa PATH` | — | Path to vendor DPA document (coming in v1.1) |
 
 **Examples**
@@ -96,14 +109,14 @@ bandit setup --show      # Print current profile
 bandit setup --reset     # Start over
 ```
 
-The wizard covers 6 sections across 18 questions:
+The wizard covers 6 sections across 26 questions:
 
 1. **Company location** — HQ region, customer regions, infrastructure regions
 2. **Industry** — 8 options including healthcare, finance, technology, retail
 3. **Data types** — PHI, PCI, children's data, special categories, AI vendors
 4. **Regulatory frameworks** — GDPR, HIPAA, CCPA, PCI-DSS, SOX, and others
 5. **Risk appetite** — escalation thresholds, AI flag escalation
-6. **Team routing** — DPO, Legal, Security review contacts
+6. **Team context & reassessment** — reviewer, per-tier depth, cadence, and out-of-cycle triggers for HIGH / MEDIUM / LOW vendors
 
 After the wizard, Bandit shows a weight preview table and writes `bandit.config.yml` in the current directory.
 
@@ -204,6 +217,7 @@ bandit assess https://legal.hubspot.com/privacy-policy
 | `-v`, `--verbose` | `assess` | Show discovery stages and signal detail live |
 | `--json` | `assess` | Output raw JSON to terminal |
 | `--no-report` | `assess` | Skip saving the HTML report |
+| `--force` | `assess` | Run even if cadence says vendor is not due |
 | `--model MODEL` | `assess`, `batch` | Override the LLM model |
 | `--api-key KEY` | `assess`, `batch` | Provide API key directly |
 | `--dpa PATH` | `assess` | Path to vendor DPA document (v1.1) |
@@ -274,7 +288,9 @@ Examples:
 
 | Path | Contents |
 |------|----------|
-| `~/.bandit/domain-cache.json` | Discovered domain → privacy URL mappings |
+| `~/.bandit/domain-cache.json` | Discovered domain → privacy URL mappings (30-day TTL) |
+| `~/.bandit/vendor-history.json` | Last assessment date, tier, and score per vendor (used for cadence checks) |
 | `~/.bandit/manual-review.json` | Vendors where discovery failed, for follow-up |
+| `~/.bandit/.setup_progress.json` | In-progress setup wizard state (deleted on completion) |
 | `./bandit.config.yml` | Setup wizard output — industry and regulatory profile |
 | `~/.bandit/bandit.config.yml` | Fallback config location (searched if `./bandit.config.yml` not found) |
