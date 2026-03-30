@@ -30,11 +30,19 @@ Set your API key (or pass `--api-key`):
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Run your first assessment:
+---
+
+## Quick start
 
 ```bash
+# Step 1 — Configure your profile (recommended)
+bandit setup
+
+# Step 2 — Run your first assessment
 bandit assess "Salesforce"
 ```
+
+`bandit setup` takes about 2 minutes and adjusts dimension weights for your industry, regulatory context, and data risk profile. If you skip it, Bandit uses GDPR-focused defaults and shows a reminder after each run.
 
 ---
 
@@ -47,6 +55,9 @@ bandit assess <vendor> --json  Output raw JSON
 bandit batch <vendors.txt>     Assess a full vendor list
 bandit rubric                  Show the scoring rubric summary
 bandit rubric --dim D5         Show criteria for one dimension
+bandit setup                   Configure your industry and regulatory profile
+bandit setup --show            Show current profile
+bandit setup --reset           Start setup over
 ```
 
 ### Input formats
@@ -81,6 +92,66 @@ HTML reports are saved to `./reports/` after every run. The batch command prints
 
 ---
 
+## Commands
+
+### bandit assess
+
+Run a full privacy risk assessment for one vendor.
+
+```bash
+bandit assess "Salesforce"                           # company name
+bandit assess salesforce.com                         # domain
+bandit assess https://salesforce.com/privacy         # full URL
+bandit assess "Acme Corp" --verbose                  # show all stages
+bandit assess "Acme Corp" --json > acme.json         # raw JSON output
+bandit assess "Acme Corp" --no-report                # skip HTML report
+bandit assess "Acme Corp" --model claude-opus-4-6    # override model
+```
+
+| Flag | Description |
+|------|-------------|
+| `-v`, `--verbose` | Show discovery stages and signal extraction detail |
+| `--json` | Print raw JSON to stdout (report still saved) |
+| `--no-report` | Skip saving the HTML report |
+| `--model MODEL` | Override the LLM model |
+| `--api-key KEY` | Provide API key directly (default: env var) |
+
+### bandit setup
+
+Run the interactive setup wizard. Configures Bandit for your industry, regulatory frameworks, data types, and company location. Saves to `bandit.config.yml`.
+
+```bash
+bandit setup           # Run full wizard
+bandit setup --show    # Show current config
+bandit setup --reset   # Start over
+```
+
+The wizard asks about:
+- Where your company operates and where customers are located
+- Your industry
+- Data types processed (PHI, PCI, children's data, special categories)
+- Applicable regulatory frameworks (GDPR, HIPAA, CCPA, PCI-DSS, etc.)
+- Risk appetite and escalation thresholds
+- Team routing (DPO, Legal, Security)
+
+Based on your answers, Bandit automatically adjusts:
+- Dimension weights for your regulatory context
+- Auto-escalation triggers
+- Contract recommendations citing relevant frameworks
+- Team routing in reports
+
+If no config exists, Bandit uses default weights and shows a tip to run setup after each assessment.
+
+### bandit batch
+
+Assess a list of vendors from a text file. See [vendors.txt format](#batch-assessment) above.
+
+### bandit rubric
+
+Show the scoring rubric. Use `--dim D1` through `--dim D8` to see criteria for a specific dimension.
+
+---
+
 ## The HTML report
 
 Every `bandit assess` run saves an HTML report to `./reports/<vendor>-<date>.html`.
@@ -88,13 +159,43 @@ Every `bandit assess` run saves an HTML report to `./reports/<vendor>-<date>.htm
 The report includes:
 
 - **Score summary** — risk tier (LOW / MEDIUM / HIGH), weighted average, per-dimension scores
+- **Assessment scope notice** — shows which document types were assessed. Currently: public privacy policy only. D8 (DPA Completeness) is marked "Requires DPA" and D2, D4, D5 are marked "Partially assessed" until a DPA is provided (v1.1 Google Drive integration)
 - **Per-dimension detail** — evidence found (confirmed signals), gaps identified (missing signals), red flags triggered
+- **Evidence confidence** — each dimension shows whether evidence is Confirmed (genuine score), Partially assessed (DPA would complete), or Requires DPA (cannot score from public policy)
+- **Profile header** — active profile shown with industry, frameworks, and modified dimension weights
+- **Escalation banner** — HIGH risk vendors with auto-escalation triggers show a prominent banner with specific reasons
 - **Vendor follow-up questions** — 2–3 questions per gap, ready to send
 - **Contract recommendations** — specific DPA/MSA redline language for scores ≤ 3
 - **Team summary** — GRC decision, Legal contract checklist, Security posture (D5/D6/D8)
 - **Vendor email template** — consolidated questions formatted as a ready-to-send email
 
 Use `--no-report` to skip saving. Use `--json` to print raw JSON to stdout (report is still saved).
+
+---
+
+## Assessment scope
+
+Bandit v1.0 assesses public privacy policies only.
+
+Different documents reveal different information:
+
+| Document | Available | Dimensions unlocked |
+|----------|-----------|---------------------|
+| Public privacy policy | Always | D1, D3, D6, D7 fully · D2, D4, D5 partially |
+| DPA | On request | D8 fully · D2/D4/D5 complete |
+| MSA | On request | D5 contractual SLA |
+| SOC 2 Type II | On request | D2, D5, D7, D8 supplemented |
+| BAA (healthcare) | On request | D5 HIPAA timeline |
+
+Google Drive and local folder document support is coming in v1.1 — this will unlock full scoring across all 8 dimensions.
+
+Until then, provide documents directly:
+
+```bash
+bandit assess "Vendor" --url https://vendor.com/privacy
+```
+
+(`--dpa` and `--docs` flags coming in v1.1)
 
 ---
 
@@ -112,6 +213,8 @@ Use `--no-report` to skip saving. Use `--json` to print raw JSON to stdout (repo
 | D8 | DPA completeness | **×1.5** | GDPR Art. 28(3)(a)–(h) |
 
 D6 and D8 are weighted 1.5× — AI/ML is the fastest-moving regulatory area and DPA quality sets the enforceability ceiling for D2, D5, and D7.
+
+Weights are adjusted automatically when you run `bandit setup`. A healthcare company gets D5 weighted higher; an EU company gets D4 weighted higher.
 
 Each dimension is scored 1–5. Risk tier:
 
@@ -168,6 +271,28 @@ Discovered domain→URL mappings are cached in `~/.bandit/domain-cache.json`.
 **Sparse policy text** — Bandit automatically retries via Jina Reader if the direct fetch returns too little text (JS-rendered pages). If both fail, the policy may require authentication.
 
 **Wrong policy found** — Pass the full URL to bypass discovery entirely.
+
+---
+
+## Roadmap
+
+**v1.0 — Live**
+Privacy Bandit, CLI, HTML reports, setup profiles, assessment scope honesty, provider-agnostic.
+
+**v1.1 — Document Sources**
+Google Drive integration, local folder support, PDF parsing, full D8 scoring, multi-document assessment.
+
+**v1.2 — Legal Bandit + Notifications**
+MSA/DPA contract gap analysis, redline briefs, Slack integration, email notifications.
+
+**v1.3 — AI Bandit + Audit Bandit**
+EU AI Act compliance, SOC 2 gap analysis, framework crosswalk.
+
+**v1.4 — Data Bandit + TPRM Register**
+Data flow mapping, vendor risk register, policy change monitoring, portfolio dashboard.
+
+**v2.0 — Full Vendor Onboarding Workflow**
+Submission portal, approval workflow, vendor self-service, audit trail.
 
 ---
 

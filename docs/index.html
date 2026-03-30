@@ -181,6 +181,18 @@
     .cave-scene { display: block; width: 100%; overflow: hidden; }
     .cave-scene svg { display: block; width: 100%; }
 
+    /* ── Roadmap section ───────────────────────────────────────── */
+    .roadmap-section { padding: 60px 40px; background: var(--cream2); border-top: 1.5px solid var(--border); }
+    .roadmap-timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; max-width: 900px; margin: 0 auto; }
+    .roadmap-card { background: var(--cream); border: 1.5px solid var(--border); border-radius: 6px; padding: 18px 14px; }
+    .roadmap-card.live { border-color: var(--brown); }
+    .roadmap-version { font-size: 10px; font-weight: 700; letter-spacing: .13em; color: var(--brown); margin-bottom: 4px; }
+    .roadmap-name { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+    .roadmap-features { font-size: 11px; color: var(--muted); font-family: system-ui, sans-serif; line-height: 1.65; }
+    .roadmap-features li { margin-bottom: 2px; list-style: none; padding-left: 12px; position: relative; }
+    .roadmap-features li::before { content: '·'; position: absolute; left: 0; color: var(--hint); }
+    .badge-planned { background: var(--cream2); color: var(--hint); border: 1px solid var(--border); display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .1em; border-radius: 2px; padding: 2px 7px; margin-top: 8px; }
+
     /* ── Footer bar ─────────────────────────────────────────────── */
     footer {
       background: var(--ink); padding: 18px 40px;
@@ -232,6 +244,7 @@
   <ul class="nav-links">
     <li><a href="#crew">The Crew</a></li>
     <li><a href="#rubric">The Rubric</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GitHub</a></li>
     <li><a href="https://github.com/conorrusso/bandit/blob/main/README.md" target="_blank" rel="noopener">Docs</a></li>
   </ul>
@@ -245,7 +258,7 @@
     <p class="punchline">YOUR VENDORS ARE HOPING YOU DON'T READ THE FINE PRINT.</p>
     <h1 class="hero-title">BANDIT</h1>
     <p class="hero-tag">Vendor Risk Intelligence Suite</p>
-    <p class="hero-desc">Point it at a vendor name, domain, or URL. Bandit finds the policy, scores it across 8 GDPR/CCPA dimensions, and saves an HTML report with evidence found, gaps identified, contract redlines, and a ready-to-send follow-up email.</p>
+    <p class="hero-desc">Point it at a vendor name, domain, or URL. Bandit finds the policy, scores it across 8 GDPR/CCPA dimensions — tailored to your industry and regulatory profile — and saves an HTML report with evidence found, gaps identified, contract redlines, and a ready-to-send follow-up email.</p>
     <div class="hero-btns">
       <a class="btn-primary" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GET STARTED</a>
       <a class="btn-ghost" href="https://github.com/conorrusso/bandit/blob/main/core/scoring/RUBRIC.md" target="_blank" rel="noopener">READ THE RUBRIC</a>
@@ -620,8 +633,8 @@
       <p class="card-desc">AI training clauses, missing breach timelines, silent sub-processors. Buried in plain sight. Bandit finds them and tells each team what to do next.</p>
     </div>
     <div class="card">
-      <div class="card-title">📄 NO ACTIONABLE OUTPUT</div>
-      <p class="card-desc">Assessments end with a score. Bandit ends with contract redlines for Legal, a follow-up email for the vendor, and a re-assess date for GRC.</p>
+      <div class="card-title">📄 NO CONTEXT, NO ACTION</div>
+      <p class="card-desc">GRC scores a vendor but Legal negotiates blind. Findings sit in a spreadsheet. Bandit bridges both — findings become redlines, gaps become follow-up questions, and every report speaks your team's language.</p>
     </div>
   </div>
 </section>
@@ -794,6 +807,11 @@
       <div class="wyg-title">VENDOR EMAIL</div>
       <p class="wyg-desc">A consolidated follow-up email with all gap questions, formatted and ready to send to the vendor's privacy or legal team.</p>
     </div>
+    <div class="wyg-card">
+      <div class="wyg-icon">🏢</div>
+      <div class="wyg-title">BUILT FOR YOUR CONTEXT</div>
+      <p class="wyg-desc">Run <code style="font-family:inherit;background:var(--cream);padding:1px 5px;border-radius:2px;border:1px solid var(--border);">bandit setup</code> once. Tell Bandit your industry, location, and regulatory frameworks. Every assessment after that is weighted and calibrated for your specific situation.</p>
+    </div>
   </div>
 </section>
 
@@ -912,12 +930,80 @@ cd bandit</div>
       <div class="install-code">pip install -e .</div>
     </div>
     <div class="install-step">
-      <div class="install-step-label">3 — Assess</div>
-      <div class="install-code">bandit assess "Anthropic"</div>
+      <div class="install-step-label">3 — Setup &amp; Assess</div>
+      <div class="install-code">bandit setup &amp;&amp; bandit assess "your-vendor.com"</div>
     </div>
   </div>
   <div style="text-align:center;">
     <a class="btn-primary" href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener" style="background:var(--brown);">VIEW ON GITHUB ↗</a>
+  </div>
+</section>
+
+<!-- ── Roadmap ────────────────────────────────────────────────────── -->
+<section class="roadmap-section" id="roadmap" aria-labelledby="roadmap-heading">
+  <div class="section-label">WHAT'S COMING</div>
+  <h2 class="section-h2" id="roadmap-heading">Built for the full vendor lifecycle.</h2>
+  <p style="font-size:13px;color:var(--muted);text-align:center;font-family:system-ui,sans-serif;margin-bottom:36px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.7;">Privacy Bandit is live today. The rest of the crew ships as each agent is ready.</p>
+  <div class="roadmap-timeline">
+
+    <div class="roadmap-card live">
+      <div class="roadmap-version">v1.0</div>
+      <div class="roadmap-name">Privacy Bandit</div>
+      <ul class="roadmap-features">
+        <li>8-dimension policy scoring</li>
+        <li>Setup profiles &amp; weights</li>
+        <li>HTML reports with redlines</li>
+        <li>Provider-agnostic</li>
+      </ul>
+      <span class="badge badge-live">LIVE</span>
+    </div>
+
+    <div class="roadmap-card">
+      <div class="roadmap-version">v1.1</div>
+      <div class="roadmap-name">Document Sources</div>
+      <ul class="roadmap-features">
+        <li>Google Drive integration</li>
+        <li>Local folder support</li>
+        <li>PDF parsing</li>
+        <li>Full D8 DPA scoring</li>
+      </ul>
+      <span class="badge badge-soon">COMING SOON</span>
+    </div>
+
+    <div class="roadmap-card">
+      <div class="roadmap-version">v1.2</div>
+      <div class="roadmap-name">Legal Bandit + Slack</div>
+      <ul class="roadmap-features">
+        <li>MSA/DPA gap analysis</li>
+        <li>Redline brief output</li>
+        <li>Slack notifications</li>
+      </ul>
+      <span class="badge badge-planned">PLANNED</span>
+    </div>
+
+    <div class="roadmap-card">
+      <div class="roadmap-version">v1.3</div>
+      <div class="roadmap-name">AI Bandit + Audit Bandit</div>
+      <ul class="roadmap-features">
+        <li>EU AI Act compliance</li>
+        <li>SOC 2 gap analysis</li>
+        <li>Framework crosswalk</li>
+      </ul>
+      <span class="badge badge-planned">PLANNED</span>
+    </div>
+
+    <div class="roadmap-card">
+      <div class="roadmap-version">v1.4</div>
+      <div class="roadmap-name">Data Bandit + TPRM Register</div>
+      <ul class="roadmap-features">
+        <li>Data flow mapping</li>
+        <li>Vendor risk register</li>
+        <li>Policy change monitoring</li>
+        <li>Portfolio dashboard</li>
+      </ul>
+      <span class="badge badge-planned">PLANNED</span>
+    </div>
+
   </div>
 </section>
 
@@ -1102,6 +1188,7 @@ cd bandit</div>
   <nav class="footer-links" aria-label="Footer links">
     <a href="#crew">The Crew</a>
     <a href="#rubric">The Rubric</a>
+    <a href="#roadmap">Roadmap</a>
     <a href="https://github.com/conorrusso/bandit/blob/main/core/scoring/RUBRIC.md" target="_blank" rel="noopener">RUBRIC.md</a>
     <a href="https://github.com/conorrusso/bandit" target="_blank" rel="noopener">GitHub</a>
     <a href="https://github.com/conorrusso/bandit/blob/main/README.md" target="_blank" rel="noopener">Docs</a>
