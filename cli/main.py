@@ -251,8 +251,12 @@ def assess(
             _folder_id = _drive_cfg.get("root_folder_id")
             if not _folder_id:
                 console.print(
-                    "\n  [color(196)]✗[/]  [color(245)]Google Drive not configured. "
-                    "Run [color(220)]bandit setup --drive[/][color(245)] first.[/]\n"
+                    "\n  [color(196)]✗[/]  [bold color(245)]Google Drive not configured.[/]\n\n"
+                    "     Run [color(220)]bandit setup --drive[/][color(245)] to connect your Drive.\n"
+                    "     Takes about 10 minutes — requires a free\n"
+                    "     Google Cloud project.\n\n"
+                    "     Full setup guide:\n"
+                    "     [color(220)]docs/google-drive-setup.md[/]\n"
                 )
                 sys.exit(1)
             import tempfile
@@ -489,75 +493,172 @@ def setup(reset: bool, show: bool, advanced: bool, drive: bool) -> None:
 
 
 def _run_drive_setup(con) -> None:
-    """Interactive Google Drive setup wizard."""
+    """Interactive Google Drive setup wizard with progress saving."""
+    import json
     import pathlib
     import shutil
 
+    _PROGRESS_PATH = pathlib.Path.home() / ".bandit" / ".drive_setup_progress.json"
+
+    def _load_progress() -> dict:
+        try:
+            return json.loads(_PROGRESS_PATH.read_text())
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _save_progress(data: dict) -> None:
+        try:
+            _PROGRESS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _tmp = _PROGRESS_PATH.with_suffix(".tmp")
+            _tmp.write_text(json.dumps(data))
+            _tmp.replace(_PROGRESS_PATH)
+        except OSError:
+            pass
+
+    def _clear_progress() -> None:
+        try:
+            _PROGRESS_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    progress = _load_progress()
+
     con.print("\n  [bold color(172)]GOOGLE DRIVE SETUP[/]\n")
 
-    # Step 1 — Credentials
-    con.print("  [bold]Step 1[/] — Download credentials")
-    con.print("  [color(245)]Google Drive integration requires a credentials file.[/]\n")
-    con.print("  [color(245)]1. Go to console.cloud.google.com[/]")
-    con.print("  [color(245)]2. Create a project (or select existing)[/]")
-    con.print("  [color(245)]3. Enable Google Drive API[/]")
-    con.print("  [color(245)]4. Create OAuth 2.0 credentials (Desktop app)[/]")
-    con.print("  [color(245)]5. Download credentials.json[/]\n")
+    # ── Already fully configured? ─────────────────────────────────────
+    if progress.get("credentials_saved") and progress.get("authenticated") and progress.get("folder_id"):
+        answer = con.input(
+            "  [color(245)]Drive already configured. Reconfigure?[/] [color(220)][y/N][/] "
+        ).strip().lower()
+        if answer != "y":
+            con.print()
+            return
+        _clear_progress()
+        progress = {}
 
-    creds_input = con.input(
-        "  [color(220)]Path to your credentials.json file:[/] "
-    ).strip()
-    if not creds_input:
-        con.print("  [color(196)]✗[/]  No path provided.\n")
-        return
-
-    creds_src = pathlib.Path(creds_input).expanduser()
-    if not creds_src.exists():
-        con.print(f"  [color(196)]✗[/]  File not found: {creds_src}\n")
-        return
+    # ── Resume banner ─────────────────────────────────────────────────
+    if progress.get("authenticated"):
+        con.print("  [color(245)]Resuming from[/] [bold]Step 3[/] [color(245)]— Folder ID[/]\n")
+    elif progress.get("credentials_saved"):
+        con.print("  [color(245)]Resuming from[/] [bold]Step 2[/] [color(245)]— Authenticate[/]\n")
 
     creds_dest = pathlib.Path.home() / ".bandit" / "google-credentials.json"
-    creds_dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(creds_src, creds_dest)
-    con.print(f"  [color(82)]✓[/]  Credentials saved to {creds_dest}\n")
 
-    # Step 2 — Authenticate
-    con.print("  [bold]Step 2[/] — Authenticate")
-    con.print("  [color(245)]Opening browser for Google authorization…[/]\n")
-    try:
-        from core.integrations.google_drive import GoogleDriveClient
-        client = GoogleDriveClient()
-        client.authenticate()
-        con.print("  [color(82)]✓[/]  Authenticated successfully\n")
-    except ImportError:
-        con.print(
-            "  [color(220)]⚠[/]  google-auth packages not installed.\n"
-            "  Install with: [color(220)]pip install -e \".[drive]\"[/]\n"
-        )
-        return
-    except Exception as exc:
-        con.print(f"  [color(196)]✗[/]  Authentication failed: {exc}\n")
-        return
+    # ── Step 1 — Credentials ──────────────────────────────────────────
+    if not progress.get("credentials_saved"):
+        con.print("  [bold]Step 1[/] — Download credentials")
+        con.print("  [color(245)]Google Drive integration requires a credentials file.[/]\n")
+        con.print("  [color(245)]1. Go to console.cloud.google.com[/]")
+        con.print("  [color(245)]2. Create a project (or select existing)[/]")
+        con.print("  [color(245)]3. Enable Google Drive API[/]")
+        con.print("  [color(245)]4. Create OAuth 2.0 credentials (Desktop app)[/]")
+        con.print("  [color(245)]5. Download credentials.json[/]\n")
 
-    # Step 3 — Configure folder
-    con.print("  [bold]Step 3[/] — Configure folder")
-    con.print("  [color(245)]Paste your Bandit Drive folder ID:[/]")
-    con.print("  [color(245)](The ID is in the URL: drive.google.com/drive/folders/FOLDER_ID)[/]\n")
-    folder_id = con.input("  [color(220)]Folder ID:[/] ").strip()
+        creds_input = con.input(
+            "  [color(220)]Path to your credentials.json file:[/] "
+        ).strip()
+        if not creds_input:
+            con.print("  [color(196)]✗[/]  No path provided.\n")
+            return
+
+        creds_src = pathlib.Path(creds_input).expanduser()
+        if not creds_src.exists():
+            con.print(f"  [color(196)]✗[/]  File not found: {creds_src}\n")
+            return
+
+        creds_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(creds_src, creds_dest)
+        con.print(f"  [color(82)]✓[/]  Credentials saved to {creds_dest}\n")
+
+        progress["credentials_saved"] = True
+        _save_progress(progress)
+
+    # ── Step 2 — Authenticate ─────────────────────────────────────────
+    client = None
+    if not progress.get("authenticated"):
+        con.print("  [bold]Step 2[/] — Authenticate")
+        con.print("  [color(245)]Opening browser for Google authorization…[/]\n")
+        try:
+            from core.integrations.google_drive import GoogleDriveClient
+            client = GoogleDriveClient()
+            client.authenticate()
+            con.print("  [color(82)]✓[/]  Authenticated successfully\n")
+            progress["authenticated"] = True
+            _save_progress(progress)
+        except ImportError:
+            con.print(
+                "\n  [color(220)]⚠[/]  [bold color(245)]Google Drive packages not installed.[/]\n\n"
+                "  Run this command to install them:\n"
+                "  [color(220)]pip install -e \".[drive]\"[/]\n\n"
+                "  After installing, run [color(220)]bandit setup --drive[/] again.\n"
+                "  Your credentials file has already been saved —\n"
+                "  setup will resume from Step 2.\n"
+            )
+            con.input("  Press Enter to exit…")
+            con.print()
+            return
+        except Exception as exc:
+            con.print(f"  [color(196)]✗[/]  Authentication failed: {exc}\n")
+            return
+    else:
+        # Already authenticated — reconnect client for Step 4 verify
+        try:
+            from core.integrations.google_drive import GoogleDriveClient
+            client = GoogleDriveClient()
+            client.authenticate()
+        except Exception:
+            client = None
+
+    # ── Step 3 — Configure folder ─────────────────────────────────────
+    folder_id = progress.get("folder_id", "")
     if not folder_id:
-        con.print("  [color(196)]✗[/]  No folder ID provided.\n")
-        return
+        con.print("  [bold]Step 3[/] — Configure folder")
+        con.print("  [color(245)]Paste your Drive folder ID or URL:[/]")
+        con.print("  [color(245)](Any folder name works — Vendor Reviews, TPRM,[/]")
+        con.print("  [color(245)] GRC Documents, etc. Bandit does not care what[/]")
+        con.print("  [color(245)] the folder is named.)[/]\n")
+        con.print("  [color(245)]You can paste either:[/]")
+        con.print("  [color(245)]  - Just the ID: 1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_[/]")
+        con.print("  [color(245)]  - The full URL from your browser[/]\n")
+        raw_input = con.input("  [color(220)]Folder ID or URL:[/] ").strip()
+        if not raw_input:
+            con.print("  [color(196)]✗[/]  No folder ID provided.\n")
+            return
+        if "/folders/" in raw_input:
+            folder_id = raw_input.split("/folders/")[-1].split("?")[0].strip()
+        else:
+            folder_id = raw_input
+        con.print(f"  [color(82)]✓[/]  Folder ID: {folder_id}\n")
+        progress["folder_id"] = folder_id
+        _save_progress(progress)
 
-    # Step 4 — Verify
+    # ── Step 4 — Verify ───────────────────────────────────────────────
     con.print("\n  [bold]Step 4[/] — Verify")
     con.print("  [color(245)]Scanning folder…[/]")
-    try:
-        folders = client.list_vendor_folders(folder_id)
-        con.print(f"  [color(82)]✓[/]  Found {len(folders)} vendor subfolder(s)\n")
-    except Exception as exc:
-        con.print(f"  [color(220)]⚠[/]  Could not scan folder: {exc}\n")
+    folder_ok = True
+    if client:
+        try:
+            folders = client.list_vendor_folders(folder_id)
+            con.print(f"  [color(82)]✓[/]  Found {len(folders)} vendor subfolder(s)\n")
+        except Exception as exc:
+            folder_ok = False
+            con.print(
+                f"\n  [color(196)]✗[/]  [bold color(245)]Could not access folder.[/]\n\n"
+                "     Check the folder ID and try again.\n"
+                "     Make sure the folder is accessible to the\n"
+                "     Google account you authenticated with.\n"
+            )
+            # Clear the bad folder_id from progress so Step 3 re-runs next time
+            progress.pop("folder_id", None)
+            _save_progress(progress)
+            return
+    else:
+        con.print("  [color(245)]Skipped — Drive client unavailable.\n")
 
-    # Save to config
+    if not folder_ok:
+        return
+
+    # ── Save to config ────────────────────────────────────────────────
     from core.config import load_config
     import yaml
     config_path = pathlib.Path("bandit.config.yml")
@@ -573,6 +674,8 @@ def _run_drive_setup(con) -> None:
         con.print(f"  [color(82)]✓[/]  Drive integration configured\n")
     except Exception:
         con.print("  [color(245)]Could not save config. Add manually to bandit.config.yml[/]\n")
+
+    _clear_progress()
 
     con.print("  [bold]Usage:[/]")
     con.print('  [color(220)]bandit assess "Salesforce" --drive[/]')
@@ -681,8 +784,12 @@ def batch(
             _drive_folder_id = _cfg.get("integrations", {}).get("google_drive", {}).get("root_folder_id")
             if not _drive_folder_id:
                 con.print(
-                    "\n  [color(196)]✗[/]  [color(245)]Google Drive not configured. "
-                    "Run [color(220)]bandit setup --drive[/][color(245)] first.[/]\n"
+                    "\n  [color(196)]✗[/]  [bold color(245)]Google Drive not configured.[/]\n\n"
+                    "     Run [color(220)]bandit setup --drive[/][color(245)] to connect your Drive.\n"
+                    "     Takes about 10 minutes — requires a free\n"
+                    "     Google Cloud project.\n\n"
+                    "     Full setup guide:\n"
+                    "     [color(220)]docs/google-drive-setup.md[/]\n"
                 )
                 sys.exit(1)
             _drive_client = GoogleDriveClient()

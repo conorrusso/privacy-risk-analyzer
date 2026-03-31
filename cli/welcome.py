@@ -9,7 +9,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 _BANDIT_ART = """\
 ██████╗  █████╗ ███╗  ██╗██████╗ ██╗████████╗
@@ -59,14 +59,19 @@ def show_welcome(console: Console | None = None) -> None:
         return t
 
     commands = [
-        (_cmd("bandit setup",   ""),                   "Configure your profile (run this first)"),
-        (_cmd("bandit assess",  "<vendor>"),           "Run a full privacy risk assessment"),
-        (_cmd("bandit assess",  "<vendor>", "-v"),     "Verbose — see fetched pages and signals"),
-        (_cmd("bandit assess",  "<vendor>", "--json"), "Output raw JSON"),
-        (_cmd("bandit batch",   "<vendors.txt>"),      "Assess a full vendor list overnight"),
-        (_cmd("bandit profile", "<vendor>"),           "Show vendor function profile and doc requirements"),
-        (_cmd("bandit rubric",  ""),                   "Show the scoring rubric summary"),
-        (_cmd("bandit rubric",  "", "--dim D5"),       "Show criteria for one dimension"),
+        (_cmd("bandit assess",  "<vendor>"),                        "Run a privacy risk assessment"),
+        (_cmd("bandit assess",  "<vendor>", "-v"),                  "Verbose — see agent reasoning"),
+        (_cmd("bandit assess",  "<vendor>", "--json"),              "Output raw JSON"),
+        (_cmd("bandit assess",  "<vendor>", "--docs <path>"),       "Include local documents"),
+        (_cmd("bandit assess",  "<vendor>", "--drive"),             "Fetch docs from Google Drive (run bandit setup --drive first)"),
+        (_cmd("bandit batch",   "<vendors.txt>"),                   "Assess a vendor list overnight"),
+        (_cmd("bandit batch",   "<vendors.txt>", "--drive"),        "Batch with Drive documents"),
+        (_cmd("bandit rubric",  ""),                                "Show scoring rubric summary"),
+        (_cmd("bandit rubric",  "", "--dim <D1-D8>"),               "Show one dimension in detail"),
+        (_cmd("bandit profile", "<vendor>"),                        "View or set vendor profile"),
+        (_cmd("bandit profile", "", "--unknown"),                   "Profile unrecognised vendors"),
+        (_cmd("bandit setup",   ""),                                "Configure your org profile"),
+        (_cmd("bandit setup",   "", "--drive"),                     "Connect Google Drive — see docs/google-drive-setup.md"),
     ]
     for cmd_text, desc in commands:
         cmd_table.add_row(cmd_text, desc)
@@ -81,9 +86,11 @@ def show_welcome(console: Console | None = None) -> None:
     ex_lines = Text()
     for ex in [
         'bandit assess "Salesforce"',
-        'bandit assess anecdotes.ai',
-        'bandit assess https://anecdotes.ai/privacy',
-        'bandit batch vendors.txt',
+        'bandit assess anecdotes.ai --verbose',
+        'bandit assess "HubSpot" --docs ./vendor-docs/HubSpot/',
+        'bandit assess "Salesforce" --drive',
+        'bandit batch vendors.txt --docs-root ./vendor-docs/',
+        'bandit batch vendors.txt --drive',
     ]:
         ex_lines.append("$ ", style="dim color(71)")
         ex_lines.append(ex + "\n", style="color(71)")
@@ -131,10 +138,10 @@ def show_welcome(console: Console | None = None) -> None:
     # ── Cursor prompt ────────────────────────────────────────────────
     console.print()
     prompt = Text()
-    prompt.append("  New? Run ", style="color(245)")
+    prompt.append("  Run ", style="color(245)")
     prompt.append("bandit setup", style="color(220)")
-    prompt.append("  ·  Then ", style="color(245)")
+    prompt.append(" to configure  ·  then ", style="color(245)")
     prompt.append("bandit assess <vendor>", style="color(220)")
-    prompt.append("▋", style="blink bold color(172)")
+    prompt.append(" ▋", style="blink bold color(172)")
     console.print(prompt)
     console.print()

@@ -948,6 +948,12 @@ def show_config(con: Console | None = None) -> None:
     }
     if dt_active:
         t.add_row("Sensitive data", ", ".join(_dt_labels.get(k, k) for k in dt_active))
+    _drive_cfg = config.get("integrations", {}).get("google_drive", {})
+    _drive_folder_id = _drive_cfg.get("root_folder_id")
+    if _drive_folder_id:
+        t.add_row("Drive", f"Configured (folder: {_drive_folder_id[:20]}…)")
+    else:
+        t.add_row("Drive", "[color(245)]not configured — run bandit setup --drive[/]")
     t.add_row("Config file", str(config_path) if config_path else "—")
 
     con.print()

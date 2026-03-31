@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: bandit-grc
-Version: 1.0.0
+Version: 1.1.0
 Summary: Open-source AI agent for vendor privacy risk assessment
 License: MIT
 Requires-Python: >=3.11
@@ -9,7 +9,14 @@ License-File: LICENSE
 Requires-Dist: anthropic>=0.40.0
 Requires-Dist: rich>=13.0.0
 Requires-Dist: click>=8.0.0
-Requires-Dist: pyyaml>=6.0
+Requires-Dist: pyyaml>=6.0.0
+Requires-Dist: pdfplumber>=0.10.0
+Requires-Dist: python-docx>=1.0.0
+Provides-Extra: drive
+Requires-Dist: google-auth>=2.0.0; extra == "drive"
+Requires-Dist: google-auth-oauthlib>=1.0.0; extra == "drive"
+Requires-Dist: google-auth-httplib2>=0.2.0; extra == "drive"
+Requires-Dist: google-api-python-client>=2.0.0; extra == "drive"
 Dynamic: license-file
 
 # Bandit — Vendor Risk Intelligence Suite
@@ -44,10 +51,47 @@ Set your API key (or pass `--api-key`):
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Run your first assessment:
+---
+
+## Quick start
+
+### Install
 
 ```bash
+git clone https://github.com/conorrusso/bandit.git
+cd bandit
+pip install -e .
+```
+
+With Google Drive support:
+```bash
+pip install -e ".[drive]"
+```
+
+### Configure
+
+```bash
+bandit setup
+```
+
+5 questions. Takes about 2 minutes. Configures Bandit for your industry, location, and regulatory profile. Run once, update anytime.
+
+For Google Drive integration:
+```bash
+bandit setup --drive
+```
+
+### Run your first assessment
+
+```bash
+# Public privacy policy only
 bandit assess "Salesforce"
+
+# With local documents
+bandit assess "Salesforce" --docs ./vendor-docs/Salesforce/
+
+# With Google Drive
+bandit assess "Salesforce" --drive
 ```
 
 ---
@@ -55,12 +99,17 @@ bandit assess "Salesforce"
 ## Usage
 
 ```
-bandit assess <vendor>         Run a full privacy risk assessment
-bandit assess <vendor> -v      Verbose — see fetched pages and signals
-bandit assess <vendor> --json  Output raw JSON
-bandit batch <vendors.txt>     Assess a full vendor list
-bandit rubric                  Show the scoring rubric summary
-bandit rubric --dim D5         Show criteria for one dimension
+bandit assess <vendor>           Run a full privacy risk assessment
+bandit assess <vendor> -v        Verbose — see fetched pages and signals
+bandit assess <vendor> --json    Output raw JSON
+bandit batch <vendors.txt>       Assess a full vendor list
+bandit profile <vendor>          Show vendor function profile and doc requirements
+bandit profile --show            List all cached vendor profiles
+bandit rubric                    Show the scoring rubric summary
+bandit rubric --dim D5           Show criteria for one dimension
+bandit setup                     Configure your industry and regulatory profile
+bandit setup --show              Show current profile
+bandit setup --reset             Start setup over
 ```
 
 ### Input formats
@@ -95,6 +144,83 @@ HTML reports are saved to `./reports/` after every run. The batch command prints
 
 ---
 
+## Commands
+
+### bandit assess
+
+Run a full privacy risk assessment for one vendor.
+
+```bash
+bandit assess "Salesforce"                           # company name
+bandit assess salesforce.com                         # domain
+bandit assess https://salesforce.com/privacy         # full URL
+bandit assess "Acme Corp" --verbose                  # show all stages
+bandit assess "Acme Corp" --json > acme.json         # raw JSON output
+bandit assess "Acme Corp" --no-report                # skip HTML report
+bandit assess "Acme Corp" --model claude-opus-4-6    # override model
+bandit assess "Acme Corp" --docs ./vendor-docs/acme/ # with documents
+bandit assess "Acme Corp" --drive                    # from Google Drive
+```
+
+| Flag | Description |
+|------|-------------|
+| `-v`, `--verbose` | Show discovery stages and signal extraction detail |
+| `--json` | Print raw JSON to stdout (report still saved) |
+| `--no-report` | Skip saving the HTML report |
+| `--model MODEL` | Override the LLM model |
+| `--api-key KEY` | Provide API key directly (default: env var) |
+| `--docs PATH` | Folder containing vendor documents (DPA, MSA, SOC 2, etc.) |
+| `--drive` | Fetch vendor documents from configured Google Drive folder |
+
+### bandit setup
+
+Run the interactive setup wizard. 5 core questions + up to 3 conditional. Infers regulatory frameworks automatically and adjusts dimension weights. Saves to `bandit.config.yml`.
+
+```bash
+bandit setup            # Run wizard (~2 minutes)
+bandit setup --show     # Show current config
+bandit setup --reset    # Start over
+bandit setup --advanced # Advanced config (coming soon)
+```
+
+The wizard asks:
+1. **Organisation type** — sets industry-specific defaults
+2. **Locations** — where you and your customers operate
+3. **Sensitive data types** — PHI, PCI, children's data, biometric, HR, special categories
+4. **Required certifications** — SOC 2, HIPAA BAA, GDPR DPA, PCI AOC, etc.
+5. **Risk approach** — Strict / Standard / Pragmatic (sets cadence and escalation)
+
+Conditional (asked only when relevant):
+- **Infrastructure location** (if EU/EEA in locations) — affects D4 cross-border transfer weight
+- **BAA required** (if PHI selected) — HIPAA Business Associate Agreement requirement
+- **PCI merchant level** (if payment card selected) — Level 1/2/3
+
+Bandit then **infers**: applicable frameworks (GDPR, HIPAA, CCPA, etc.), dimension weights, reassessment cadence, and escalation triggers — all shown for review before saving.
+
+If no config exists, Bandit prompts you to run setup before the assessment starts. You can set up inline, skip it, or quit.
+
+### bandit profile
+
+Show the vendor function profile for any vendor — what category it belongs to, weight modifiers that apply, and documents expected.
+
+```bash
+bandit profile "Salesforce"    # Detect and show profile
+bandit profile --show          # List all cached profiles
+bandit profile --unknown       # Show vendors with unknown classification
+```
+
+Bandit auto-detects vendor functions (HR, payments, AI/ML, healthcare, etc.) using a curated library of 330+ vendors. If detection confidence is below 0.6, you'll be prompted to confirm during `bandit assess`.
+
+### bandit batch
+
+Assess a list of vendors from a text file. See [vendors.txt format](#batch-assessment) above.
+
+### bandit rubric
+
+Show the scoring rubric. Use `--dim D1` through `--dim D8` to see criteria for a specific dimension.
+
+---
+
 ## The HTML report
 
 Every `bandit assess` run saves an HTML report to `./reports/<vendor>-<date>.html`.
@@ -102,13 +228,100 @@ Every `bandit assess` run saves an HTML report to `./reports/<vendor>-<date>.htm
 The report includes:
 
 - **Score summary** — risk tier (LOW / MEDIUM / HIGH), weighted average, per-dimension scores
+- **Assessment scope notice** — shows which document types were assessed. Currently: public privacy policy only. D8 (DPA Completeness) is marked "Requires DPA" and D2, D4, D5 are marked "Partially assessed" until a DPA is provided (v1.1 Google Drive integration)
 - **Per-dimension detail** — evidence found (confirmed signals), gaps identified (missing signals), red flags triggered
+- **Evidence confidence** — each dimension shows whether evidence is Confirmed (genuine score), Partially assessed (DPA would complete), or Requires DPA (cannot score from public policy)
+- **Profile header** — active profile shown with industry, frameworks, and modified dimension weights
+- **Escalation banner** — HIGH risk vendors with auto-escalation triggers show a prominent banner with specific reasons
 - **Vendor follow-up questions** — 2–3 questions per gap, ready to send
 - **Contract recommendations** — specific DPA/MSA redline language for scores ≤ 3
 - **Team summary** — GRC decision, Legal contract checklist, Security posture (D5/D6/D8)
 - **Vendor email template** — consolidated questions formatted as a ready-to-send email
 
 Use `--no-report` to skip saving. Use `--json` to print raw JSON to stdout (report is still saved).
+
+---
+
+## Assessment scope
+
+Bandit v1.0 assesses public privacy policies only.
+
+Different documents reveal different information:
+
+| Document | Dimensions unlocked |
+|----------|---------------------|
+| Public policy only | D1, D3, D6, D7 fully · D2, D4, D5 partially · D8 not assessed |
+| + DPA | D8 fully · D2/D4/D5 complete |
+| + BAA (healthcare) | D5 HIPAA timeline |
+| + SOC 2 Type II | D2, D5, D7, D8 supplemented |
+| + AI Policy | D6 deep assessment |
+| + Sub-processor list | D2 complete |
+
+## Document sources
+
+Bandit v1.0 assessed public privacy policies only. Bandit v1.1 adds local folder and Google Drive support, unlocking full scoring across all 8 dimensions.
+
+### What documents unlock
+
+| Document | Dimensions unlocked |
+|----------|-------------------|
+| Public policy only | D1 D3 D6 D7 fully · D2 D4 D5 partial · D8 not scored |
+| + DPA | D8 fully · D2 D4 D5 complete |
+| + BAA | D5 HIPAA timeline · D8 HIPAA provisions |
+| + SOC 2 Type II | Evidence for D2 D5 D7 D8 |
+| + AI Policy | D6 deep assessment |
+| + Sub-processor list | D2 complete |
+
+### Local folder
+
+```bash
+# Single vendor
+bandit assess "Salesforce" --docs ./vendor-docs/Salesforce/
+
+# Batch with auto-matching
+bandit batch vendors.txt --docs-root ./vendor-docs/
+```
+
+Folder structure:
+
+```
+vendor-docs/
+├── Salesforce/
+│   ├── dpa.pdf
+│   ├── msa.pdf
+│   └── soc2-2025.pdf
+└── HubSpot/
+    └── dpa.pdf
+```
+
+File names don't matter — Bandit auto-detects types.
+Supports: PDF · DOCX · HTML · TXT · MD · JSON
+
+### Google Drive
+
+```bash
+# One-time setup
+bandit setup --drive
+
+# Assess with Drive documents
+bandit assess "Salesforce" --drive
+
+# Batch with Drive
+bandit batch vendors.txt --drive
+```
+
+Full setup guide: [docs/google-drive-setup.md](docs/google-drive-setup.md)
+
+### Local vs Drive
+
+| | Local folder | Google Drive |
+|--|--|--|
+| Setup | None — just create folders | One-time OAuth setup |
+| Best for | Quick assessments, offline, Ollama | Teams, scheduled batches |
+| Air-gapped | Yes (with Ollama) | No |
+| Auto-discover | Manual folder path | Automatic by vendor name |
+| Save reports | Local ./reports/ | Back to Drive vendor folder |
+| Team access | No | Yes |
 
 ---
 
@@ -126,6 +339,8 @@ Use `--no-report` to skip saving. Use `--json` to print raw JSON to stdout (repo
 | D8 | DPA completeness | **×1.5** | GDPR Art. 28(3)(a)–(h) |
 
 D6 and D8 are weighted 1.5× — AI/ML is the fastest-moving regulatory area and DPA quality sets the enforceability ceiling for D2, D5, and D7.
+
+Weights are adjusted automatically when you run `bandit setup`. A healthcare company gets D5 weighted higher; an EU company gets D4 weighted higher.
 
 Each dimension is scored 1–5. Risk tier:
 
@@ -182,6 +397,42 @@ Discovered domain→URL mappings are cached in `~/.bandit/domain-cache.json`.
 **Sparse policy text** — Bandit automatically retries via Jina Reader if the direct fetch returns too little text (JS-rendered pages). If both fail, the policy may require authentication.
 
 **Wrong policy found** — Pass the full URL to bypass discovery entirely.
+
+### Document issues
+
+**All dimensions still show "Requires DPA" after --docs**
+Check the manifest output — the DPA may have failed to extract (scanned PDF) or been classified as UNKNOWN. Run with `--verbose` to see the full manifest. Rename the file to include "dpa" if classification failed.
+
+**Scanned PDF not readable**
+Bandit requires PDFs with a text layer. Request a native PDF from your vendor. OCR support for scanned PDFs is coming in v1.2.
+
+**Google Drive: "Vendor folder not found"**
+The subfolder name must match the vendor name. Check spelling and case. Example: folder "Salesforce" matches `bandit assess "Salesforce"`.
+
+**Google Drive: token expired**
+Run `bandit setup --drive` to re-authenticate. Bandit will refresh expired tokens automatically in most cases.
+
+---
+
+## Roadmap
+
+### v1.0 — Live
+Privacy Bandit · CLI · HTML reports · Setup profiles · Evidence confidence · Provider-agnostic
+
+### v1.1 — Live
+Local folder document sources · Google Drive integration · PDF/DOCX parsing · 47 document types · Full D8 scoring · Signal source attribution · Multi-document assessment
+
+### v1.2 — Planned
+Legal Bandit · MSA/DPA contract gap analysis · Slack integration · Email notifications · OCR support for scanned PDFs
+
+### v1.3 — Planned
+AI Bandit · EU AI Act compliance · Audit Bandit · SOC 2 gap analysis · Framework crosswalk
+
+### v1.4 — Planned
+Data Bandit · TPRM register · Policy change monitoring · Portfolio dashboard
+
+### v2.0 — Planned
+Full vendor onboarding workflow · Submission portal · Approval workflow · Vendor self-service · API
 
 ---
 
