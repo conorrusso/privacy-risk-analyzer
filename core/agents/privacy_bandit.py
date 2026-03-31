@@ -198,6 +198,7 @@ class PrivacyBandit(BaseBandit):
 
         # ── Document ingestion (optional) ────────────────────────────
         documents_assessed: list[str] = []
+        ready_docs: list = []
         all_doc_signals: dict = {}
         signal_sources: dict = {}
 
@@ -217,6 +218,7 @@ class PrivacyBandit(BaseBandit):
                     if d.extraction_ok and d.doc_type != DocumentType.UNKNOWN
                 ]
                 documents_assessed = [d.file_name for d in ready_docs]
+
 
                 for doc in ready_docs:
                     self._progress(
@@ -325,9 +327,16 @@ class PrivacyBandit(BaseBandit):
         profile_weights = bandit_cfg.get_weights(vendor_functions=vendor_functions)
         auto_escalate_triggers = bandit_cfg.get_auto_escalate_triggers()
 
+        dpa_found = any(
+            d.doc_type == DocumentType.DPA and d.extraction_ok
+            for d in ready_docs
+        )
+        scored_doc_types = {
+            d.doc_type for d in ready_docs if d.extraction_ok
+        }
         assessment_scope = (
             "policy_and_documents"
-            if documents_assessed
+            if scored_doc_types
             else "public_policy_only"
         )
 
@@ -339,6 +348,7 @@ class PrivacyBandit(BaseBandit):
             profile_weights=profile_weights,
             auto_escalate_triggers=auto_escalate_triggers,
             assessment_scope=assessment_scope,
+            dpa_available=dpa_found,
         )
 
         if config:

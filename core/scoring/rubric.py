@@ -1109,6 +1109,7 @@ def score_vendor(
     profile_weights: dict[str, float] | None = None,
     auto_escalate_triggers: list[dict] | None = None,
     assessment_scope: str = "public_policy_only",
+    dpa_available: bool = True,
 ) -> AssessmentResult:
     """Run the full deterministic scoring pipeline.
 
@@ -1214,6 +1215,12 @@ def score_vendor(
                 dim_results[dim_key].absent_type = "requires_dpa"
             elif dim_key in _PARTIALLY_FROM_POLICY:
                 dim_results[dim_key].partially_assessed = True
+    elif not dpa_available:
+        # Documents present but no DPA — D8 still cannot be scored
+        for dim_key in RUBRIC:
+            if _ASSESSABLE_FROM.get(dim_key) == "dpa_only":
+                dim_results[dim_key].is_excluded = True
+                dim_results[dim_key].absent_type = "requires_dpa"
 
     # 7. Weighted average — exclude is_excluded dimensions
     _included = [k for k in RUBRIC if not dim_results[k].is_excluded]
