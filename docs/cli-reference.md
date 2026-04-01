@@ -106,7 +106,7 @@ bandit setup [OPTIONS]
 |--------|-------------|
 | `--show` | Print current config summary and exit |
 | `--reset` | Remove existing config and start the wizard fresh |
-| `--drive` | Configure Google Drive integration |
+| `--drive` | Configure Google Drive integration — accepts folder URL or bare ID in Step 3 |
 | `--advanced` | Advanced configuration (coming soon) |
 
 **Examples**
@@ -281,7 +281,7 @@ bandit assess https://legal.hubspot.com/privacy-policy
 | `--docs-root PATH` | `batch` | Root folder with vendor subfolders |
 | `--show` | `setup` | Print current config and exit |
 | `--reset` | `setup` | Remove existing config and restart wizard |
-| `--drive` | `setup` | Configure Google Drive integration |
+| `--drive` | `setup` | Configure Google Drive integration (saves progress, resumes on restart) |
 | `--dim D1–D8` | `rubric` | Show detail for one dimension |
 
 ---

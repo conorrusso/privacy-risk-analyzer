@@ -41,7 +41,7 @@ Rules:
 
 ## Step 2 — Create a Google Cloud project
 
-Bandit needs read-only access to your Drive. This requires a free Google Cloud project.
+Bandit needs read and write access to your Drive — it reads vendor documents and saves HTML assessment reports back to vendor folders. This requires a free Google Cloud project.
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com)
 2. Click "Select a project" at the top
@@ -69,7 +69,7 @@ Bandit needs read-only access to your Drive. This requires a free Google Cloud p
    - User support email: your email
    - Developer contact: your email
    - Save and continue through all steps
-   - No scopes needed — just save defaults
+   - No scopes to add here — Bandit requests the Drive scope automatically during authentication
    - Add your email as a test user
 4. Back on Create Credentials → OAuth client ID:
    - Application type: **Desktop app**
@@ -85,12 +85,12 @@ Bandit needs read-only access to your Drive. This requires a free Google Cloud p
 
 1. Open Google Drive in your browser
 2. Navigate to your Bandit root folder (the one containing vendor subfolders)
-3. Look at the URL — it will look like:
+3. Copy either the **full URL** from your browser address bar or just the **folder ID** at the end — both work:
    ```
-   drive.google.com/drive/folders/1ABC123xyz...
+   Full URL:  https://drive.google.com/drive/u/0/folders/1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_
+   Bare ID:   1YOYAT1DxmLjFRfoN3irpm3xGbafVZv7_
    ```
-4. Copy the long ID after `/folders/`
-   That is your folder ID.
+   Bandit will extract the ID automatically if you paste the full URL.
 
 ---
 
@@ -107,11 +107,11 @@ Bandit will ask for:
 
 2. **Your browser will open automatically**
    → log in with your Google account
-   → click Allow to grant read-only Drive access
+   → click Allow to grant Bandit read and write access to Google Drive
    → browser tab will confirm success
 
 3. **Your Bandit root folder ID**
-   → paste the ID you copied in Step 5
+   → paste the folder ID or full URL you copied in Step 5
 
 4. Bandit scans the folder and confirms:
    ```
@@ -119,6 +119,8 @@ Bandit will ask for:
    ✓ Found 12 vendor subfolders
    ✓ Configuration saved
    ```
+
+Setup saves your progress after each step. If you quit or lose connection mid-wizard, re-running `bandit setup --drive` resumes from where you left off. If all steps are already complete, you'll be asked "Drive already configured. Reconfigure? [y/N]".
 
 ---
 
@@ -153,10 +155,12 @@ Batch assessment — all vendors with Drive folders:
 bandit batch vendors.txt --drive
 ```
 
-Skip saving report to Drive:
+To disable saving reports to Drive, set in `bandit.config.yml`:
 
-```bash
-bandit assess "Salesforce" --drive --no-report-to-drive
+```yaml
+integrations:
+  google_drive:
+    auto_save_reports: false
 ```
 
 ---
@@ -190,8 +194,20 @@ Check the subfolder name matches the vendor name you're using in Bandit. Matchin
 Example: folder named "Salesforce" matches `bandit assess "Salesforce"` or `bandit assess "salesforce"`
 
 **"Token expired" or authentication errors**
-Run `bandit setup --drive` again.
-Bandit will refresh your token automatically in most cases.
+Delete the token and re-authenticate:
+```bash
+rm ~/.bandit/google-token.json
+bandit assess "YourVendor" --drive
+```
+Your browser will open for a fresh login. Running `bandit setup --drive` alone does not always fix this if the token is present but has the wrong permissions.
+
+**"403 Insufficient Permission" on Drive save**
+Your token was created with read-only scope before Bandit added report saving. Delete the token and re-authenticate:
+```bash
+rm ~/.bandit/google-token.json
+bandit assess "YourVendor" --drive
+```
+On the Google consent screen, accept "See, edit, create and delete all your Google Drive files". Bandit now detects this automatically on startup, but if you see this error the token needs replacing.
 
 **Drive documents not improving scores**
 Check the manifest output when running with `--verbose`.
@@ -205,8 +221,8 @@ Make sure the Google account you authenticated with has access to the Drive fold
 
 ## Security and privacy
 
-- Bandit requests **read-only** access to Drive
+- Bandit requests **read and write** access to Drive — needed to save HTML reports back to vendor folders after each assessment
 - Your credentials never leave your machine
 - Documents are downloaded to a temporary directory that is deleted after each assessment
-- Bandit never modifies Drive contents except saving HTML reports back to vendor folders (disable with `auto_save_reports: false` in config)
+- Reports are saved back to the matching vendor subfolder in Drive after each assessment. Disable with `auto_save_reports: false` in `bandit.config.yml`
 - Your API key and Drive token are stored in `~/.bandit/` on your local machine only

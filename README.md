@@ -388,8 +388,13 @@ Bandit requires PDFs with a text layer. Request a native PDF from your vendor. O
 **Google Drive: "Vendor folder not found"**
 The subfolder name must match the vendor name. Check spelling and case. Example: folder "Salesforce" matches `bandit assess "Salesforce"`.
 
-**Google Drive: token expired**
-Run `bandit setup --drive` to re-authenticate. Bandit will refresh expired tokens automatically in most cases.
+**Google Drive: token expired or "403 Insufficient Permission"**
+Delete the token and re-authenticate:
+```bash
+rm ~/.bandit/google-token.json
+bandit assess "YourVendor" --drive
+```
+Running `bandit setup --drive` alone does not always fix this — the token must be deleted so a fresh browser consent is triggered with the correct permissions.
 
 ---
 
