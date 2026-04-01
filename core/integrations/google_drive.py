@@ -1,14 +1,16 @@
 """
 Bandit Google Drive Integration
 ================================
-Full OAuth 2.0 client for reading vendor documents from Google Drive.
+Full OAuth 2.0 client for reading vendor documents from Google Drive
+and saving HTML reports back to vendor folders.
 
 Authentication:
   Credentials: ~/.bandit/google-credentials.json (OAuth client secrets)
   Token:       ~/.bandit/google-token.json        (refreshable token)
 
 Scopes:
-  https://www.googleapis.com/auth/drive.readonly
+  https://www.googleapis.com/auth/drive
+  (read.readonly is insufficient — saving reports requires write access)
 
 Install:
   pip install -e ".[drive]"
@@ -21,7 +23,7 @@ from pathlib import Path
 
 class GoogleDriveClient:
 
-    SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
+    SCOPES = ["https://www.googleapis.com/auth/drive"]
     CREDS_PATH = Path.home() / ".bandit" / "google-credentials.json"
     TOKEN_PATH = Path.home() / ".bandit" / "google-token.json"
 
@@ -41,6 +43,12 @@ class GoogleDriveClient:
             creds = Credentials.from_authorized_user_file(
                 str(self.TOKEN_PATH), self.SCOPES
             )
+            # If the stored token was granted narrower scopes than required
+            # (e.g. drive.readonly → drive), discard it and re-auth.
+            _granted = set(getattr(creds, "granted_scopes", None) or [])
+            _required = set(self.SCOPES)
+            if _granted and not _required.issubset(_granted):
+                creds = None
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
