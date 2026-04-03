@@ -312,3 +312,45 @@ After completing `bandit setup`, your `bandit.config.yml` contains everything Ba
 
 **Document expectations:**
 Based on industry and data types, Bandit knows what documents to expect per vendor and flags missing required documents in every report.
+
+---
+
+## Tech stack setup (bandit setup --stack)
+
+Collect your internal tools by category. These names appear as options in Q6 of the vendor intake wizard.
+
+```bash
+bandit setup --stack
+```
+
+You'll be walked through tool categories:
+
+| Category | Examples |
+|----------|---------|
+| Identity / SSO | Okta, Google Workspace, Azure AD |
+| CRM | Salesforce, HubSpot |
+| Data warehouse | Snowflake, BigQuery, Databricks |
+| HRIS | Workday, BambooHR, Rippling |
+| Finance / ERP | NetSuite, QuickBooks, SAP |
+| Ticketing / DevOps | Jira, GitHub, PagerDuty |
+| Communication | Slack, Teams, Zoom |
+| Security | CrowdStrike, Wiz, SentinelOne |
+
+The selected tools are saved to `bandit.config.yml` under `tech_stack:`. Run `--stack` again at any time to update.
+
+---
+
+## IT notification setup (bandit setup --notify)
+
+Configure who receives vendor integration notifications and how. Notifications are queued during `bandit vendor add` and will be sent automatically in v1.4.
+
+```bash
+bandit setup --notify
+```
+
+You'll be asked:
+1. IT contact name
+2. IT contact email
+3. Delivery method (currently: email / queue only)
+
+The contact is saved to `bandit.config.yml` under `it_contact:`. Queued notifications are stored in each vendor's profile as `pending_it_notification` and include per-integration action items (provision SSO, create service accounts, set field-level permissions, etc.).

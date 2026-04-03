@@ -87,8 +87,17 @@ bandit profile --show            List all cached vendor profiles
 bandit rubric                    Show the scoring rubric summary
 bandit rubric --dim D5           Show criteria for one dimension
 bandit setup                     Configure your industry and regulatory profile
+bandit setup --stack             Set up your internal tech stack
+bandit setup --notify            Configure IT notification contact
 bandit setup --show              Show current profile
 bandit setup --reset             Start setup over
+bandit vendor add <vendor>       Run 12-question intake wizard for a new vendor
+bandit vendor show <vendor>      View vendor profile and assessment history
+bandit vendor edit <vendor>      Update intake answers
+bandit vendor list               List all vendors with risk tier and next due date
+bandit vendor list --due         Vendors due for reassessment only
+bandit vendor list --risk HIGH   Filter by risk tier
+bandit legal <vendor>            Standalone contract gap analysis
 ```
 
 ### Input formats
@@ -157,6 +166,8 @@ Run the interactive setup wizard. 5 core questions + up to 3 conditional. Infers
 
 ```bash
 bandit setup            # Run wizard (~2 minutes)
+bandit setup --stack    # Collect internal tools by category (used in vendor intake)
+bandit setup --notify   # Configure IT notification contact and method
 bandit setup --show     # Show current config
 bandit setup --reset    # Start over
 bandit setup --advanced # Advanced config (coming soon)
@@ -223,7 +234,7 @@ Use `--no-report` to skip saving. Use `--json` to print raw JSON to stdout (repo
 
 ## Assessment scope
 
-Bandit v1.0 assesses public privacy policies only.
+Bandit assesses public privacy policies and uploaded documents.
 
 Different documents reveal different information:
 
@@ -238,7 +249,7 @@ Different documents reveal different information:
 
 ## Document sources
 
-Bandit v1.0 assessed public privacy policies only. Bandit v1.1 adds local folder and Google Drive support, unlocking full scoring across all 8 dimensions.
+Bandit supports public privacy policies, local document folders, and Google Drive, unlocking full scoring across all 8 dimensions.
 
 ### What documents unlock
 
@@ -406,14 +417,14 @@ Privacy Bandit · CLI · HTML reports · Setup profiles · Evidence confidence �
 ### v1.1 — Live
 Local folder document sources · Google Drive integration · PDF/DOCX parsing · 47 document types · Full D8 scoring · Signal source attribution · Multi-document assessment
 
-### v1.2 — Planned
-Legal Bandit · MSA/DPA contract gap analysis · Slack integration · Email notifications · OCR support for scanned PDFs
+### v1.2 — Live
+Legal Bandit · Full GDPR Art. 28(3) DPA checklist · MSA commercial data protection terms · SCC version check · Contract-based score updates · Legal redline brief HTML report
 
-### v1.3 — Planned
-AI Bandit · EU AI Act compliance · Audit Bandit · SOC 2 gap analysis · Framework crosswalk
+### v1.3 — Live
+Vendor Intelligence · 12-question intake wizard · Tech stack integration · Assessment history per vendor · Intake context injected into assessments · Weight modifiers from intake data · IT notification queue · Google Drive profile sync
 
 ### v1.4 — Planned
-Data Bandit · TPRM register · Policy change monitoring · Portfolio dashboard
+Dashboard · Scheduled reassessment · IT notification sending · Portfolio risk register · Policy change monitoring
 
 ### v2.0 — Planned
 Full vendor onboarding workflow · Submission portal · Approval workflow · Vendor self-service · API
@@ -427,7 +438,7 @@ Each Bandit is a specialised agent with its own tool belt:
 | Agent | Status | Scope |
 |-------|--------|-------|
 | Privacy Bandit | **Live** | All 8 dimensions from privacy policy + DPA |
-| Legal Bandit | Planned | D2, D5, D7, D8 from MSA/DPA |
+| Legal Bandit | **Live** | D2, D5, D7, D8 from MSA/DPA · GDPR Art. 28 checklist · redline brief |
 | AI Bandit | Planned | D6 focused, EU AI Act compliance |
 | Audit Bandit | Planned | D2, D5, D8 from SOC 2 / ISO 27001 reports |
 | Data Bandit | Planned | Data flow and transfer mapping |

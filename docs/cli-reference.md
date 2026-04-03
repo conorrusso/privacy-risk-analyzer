@@ -5,10 +5,17 @@
 | Command | What it does |
 |---------|-------------|
 | `bandit assess "Vendor"` | Assess a single vendor's privacy practices |
+| `bandit vendor add "Vendor"` | Run 12-question intake wizard for a new vendor |
+| `bandit vendor show "Vendor"` | View vendor profile and assessment history |
+| `bandit vendor edit "Vendor"` | Update intake answers |
+| `bandit vendor list` | List all vendors with risk tier and next due date |
+| `bandit vendor list --due` | Vendors due for reassessment only |
+| `bandit legal "Vendor"` | Standalone contract gap analysis (DPA/MSA) |
 | `bandit setup` | Run the setup wizard (~2 min, infers frameworks automatically) |
+| `bandit setup --stack` | Collect your internal tools by category |
+| `bandit setup --notify` | Configure IT notification contact |
 | `bandit setup --show` | Print your current profile |
 | `bandit setup --reset` | Start the wizard over |
-| `bandit setup --advanced` | Advanced configuration (coming soon) |
 | `bandit profile "Vendor"` | Show vendor function profile and doc requirements |
 | `bandit profile --show` | List all cached vendor profiles |
 | `bandit batch vendors.txt` | Assess a list of vendors from a file |
@@ -107,12 +114,16 @@ bandit setup [OPTIONS]
 | `--show` | Print current config summary and exit |
 | `--reset` | Remove existing config and start the wizard fresh |
 | `--drive` | Configure Google Drive integration — accepts folder URL or bare ID in Step 3 |
+| `--stack` | Collect your internal tools by category (used in vendor intake Q6) |
+| `--notify` | Configure IT notification contact and method |
 | `--advanced` | Advanced configuration (coming soon) |
 
 **Examples**
 
 ```bash
 bandit setup              # Run wizard (~2 minutes)
+bandit setup --stack      # Configure internal tech stack
+bandit setup --notify     # Set IT contact for vendor notifications
 bandit setup --show       # Print current profile
 bandit setup --reset      # Start over
 bandit setup --drive      # Configure Google Drive integration
@@ -171,6 +182,84 @@ Bandit detects vendor functions through a 4-stage pipeline:
 4. Unknown → GENERAL_SAAS fallback
 
 Profiles are cached in `~/.bandit/vendor-profiles.json` and reused across assessments.
+
+---
+
+### `bandit vendor`
+
+Manage vendor profiles, intake data, and assessment history.
+
+```
+bandit vendor add <vendor>
+bandit vendor show <vendor>
+bandit vendor edit <vendor>
+bandit vendor list [OPTIONS]
+```
+
+**Subcommands**
+
+| Subcommand | Description |
+|-----------|-------------|
+| `add <vendor>` | Run 12-question intake wizard. Checks Drive for existing folder first. Queues IT actions. |
+| `show <vendor>` | Display full profile and last 5 assessment history entries |
+| `edit <vendor>` | Re-run intake wizard with current values as defaults |
+| `list` | Table of all vendors with risk tier, score, dates, and intake status |
+
+**list options**
+
+| Option | Description |
+|--------|-------------|
+| `--due` | Show only vendors where next due date has passed |
+| `--risk TIER` | Filter by risk tier: HIGH, MEDIUM, or LOW |
+
+**Examples**
+
+```bash
+bandit vendor add "HubSpot"
+bandit vendor show "HubSpot"
+bandit vendor edit "HubSpot"
+bandit vendor list
+bandit vendor list --due
+bandit vendor list --risk HIGH
+```
+
+See [docs/vendor-guide.md](vendor-guide.md) for a full walkthrough.
+
+---
+
+### `bandit legal`
+
+Run a standalone Legal Bandit contract gap analysis against a vendor's DPA or MSA. Produces a legal redline brief HTML report.
+
+```
+bandit legal <vendor> [OPTIONS]
+```
+
+**Options**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--docs PATH` | — | Folder containing DPA/MSA documents |
+| `--drive` | off | Fetch documents from Google Drive |
+| `--no-legal-brief` | off | Skip saving the HTML legal redline brief |
+| `--model MODEL` | `claude-haiku-4-5-20251001` | LLM model ID |
+
+**Examples**
+
+```bash
+bandit legal "Salesforce" --docs ./vendor-docs/salesforce/
+bandit legal "Salesforce" --drive
+bandit legal "Salesforce" --docs ./docs/ --no-legal-brief
+```
+
+Legal Bandit checks:
+- GDPR Art. 28(3)(a)–(h) provisions against the DPA
+- Vague language detection ("appropriate measures", "commercially reasonable efforts")
+- Policy/contract conflicts
+- SCC version and completeness (flags pre-2021 SCCs)
+- MSA commercial data protection terms
+
+Score changes from contract analysis are shown in the terminal: `D5 1→4 ↑ Contract`.
 
 ---
 
@@ -397,12 +486,15 @@ Examples:
 
 | Path | Contents |
 |------|----------|
-| `~/.bandit/domain-cache.json` | Discovered domain → privacy URL mappings (30-day TTL) |
-| `~/.bandit/vendor-history.json` | Last assessment date, tier, and score per vendor (used for cadence checks) |
-| `~/.bandit/manual-review.json` | Vendors where discovery failed, for follow-up |
-| `~/.bandit/.setup_progress.json` | In-progress setup wizard state (deleted on completion) |
 | `./bandit.config.yml` | Setup wizard output — industry and regulatory profile |
 | `~/.bandit/bandit.config.yml` | Fallback config location (searched if `./bandit.config.yml` not found) |
+| `~/.bandit/vendor-profiles.json` | All vendor profiles, intake data, and assessment history |
+| `~/.bandit/domain-cache.json` | Discovered domain → privacy URL mappings (30-day TTL) |
+| `~/.bandit/vendor-history.json` | Legacy assessment history (superseded by vendor-profiles.json) |
+| `~/.bandit/manual-review.json` | Vendors where discovery failed, for follow-up |
+| `~/.bandit/.setup_progress.json` | In-progress setup wizard state (deleted on completion) |
+| `~/.bandit/.intake_progress.json` | In-progress intake wizard state (deleted on completion) |
+| `~/.bandit/google-token.json` | Google OAuth token for Drive integration |
 
 ---
 

@@ -9,7 +9,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-VERSION = "1.1.0"
+VERSION = "1.3.0"
 
 _BANDIT_ART = """\
 ██████╗  █████╗ ███╗  ██╗██████╗ ██╗████████╗
