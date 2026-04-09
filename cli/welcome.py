@@ -9,7 +9,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 _BANDIT_ART = """\
 ██████╗  █████╗ ███╗  ██╗██████╗ ██╗████████╗
@@ -72,6 +72,10 @@ def show_welcome(console: Console | None = None) -> None:
         (_cmd("bandit profile", "", "--unknown"),                   "Profile unrecognised vendors"),
         (_cmd("bandit setup",   ""),                                "Configure your org profile"),
         (_cmd("bandit setup",   "", "--drive"),                     "Connect Google Drive — see docs/google-drive-setup.md"),
+        (_cmd("bandit dashboard", ""),                              "Portfolio risk overview"),
+        (_cmd("bandit schedule", ""),                               "Reassessment schedule"),
+        (_cmd("bandit register", ""),                               "Export TPRM register (CSV / JSON / HTML)"),
+        (_cmd("bandit notify",  "", "--all"),                       "Send queued IT notifications"),
     ]
     for cmd_text, desc in commands:
         cmd_table.add_row(cmd_text, desc)

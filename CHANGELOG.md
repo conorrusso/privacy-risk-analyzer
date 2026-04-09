@@ -6,6 +6,41 @@ Format: `Added` new features · `Changed` behaviour or UX · `Fixed` bugs · `Re
 
 ---
 
+## [1.4.0] — 2026-04-09
+
+### Architecture
+- `core/data/resolver.py`: `VendorDataResolver` — unified data access layer for all commands. Knows whether vendor data lives locally or in Drive and fetches from the right place transparently. `drive_folder_id` stored in vendor profile — no search needed.
+- All core/ modules return dataclasses, never print. CLI renders. Future UI calls core directly.
+- `on_progress` callback pattern throughout for streaming-compatible progress reporting.
+- `--json` flag on all new commands for UI API surface.
+
+### Added
+
+**Dashboard**
+- `bandit dashboard show` — portfolio risk overview. Risk distribution, due vendors, open findings, intake completion rate, Drive vs local breakdown
+- `bandit dashboard schedule` — reassessment schedule sorted by urgency, shows days overdue, recommended depth per vendor, data source (Drive/local)
+- `bandit dashboard register` — TPRM register export. CSV, JSON, or HTML output with all vendor data
+- `bandit dashboard notify` — send IT notifications
+
+**Top-level aliases (convenience)**
+- `bandit schedule`
+- `bandit register [--format csv|json|html] [--out FILE]`
+- `bandit notify [vendor] [--all]`
+
+**Data resolver**
+- `VendorDataResolver` used by `bandit assess` — replaces direct Drive/local document loading
+- Deduplicates documents across sources (Drive wins over local)
+- Sync failures never block assessment
+
+**Notifications**
+- Slack webhook support (Incoming Webhooks)
+- Email support via SMTP
+- `bandit setup --notify` extended: now collects Slack webhook URL in addition to email and channel name
+- Notifications marked sent in vendor profile after successful send
+- `bandit notify --all` sends all pending
+
+---
+
 ## [1.3.0] — 2026-04-01
 
 ### Added

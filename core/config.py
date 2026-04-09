@@ -576,6 +576,8 @@ class BanditConfig:
     def get_it_contact(self) -> dict:
         """
         Returns IT contact info for notifications.
+        Includes it_contact_email, it_slack_channel,
+        and slack_webhook_url.
         """
         if not self._cfg:
             return {}

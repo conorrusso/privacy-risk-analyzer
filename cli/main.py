@@ -241,7 +241,17 @@ def assess(
 
     provider = AnthropicProvider(model=model, api_key=api_key)
 
-    # ── 7D: Sync vendor profiles FROM Drive at start of assess ───────
+    # ── v1.4: Unified data resolver ───────────────────────────────────
+    from core.data.resolver import VendorDataResolver as _Resolver
+    _resolver = _Resolver(
+        vendor_name=vendor_str,
+        local_docs_path=pathlib.Path(docs) if docs else None,
+        on_progress=lambda p: console.print(
+            f"  [dim]{p['message']}[/dim]"
+        ) if verbose else None,
+    )
+
+    # ── Sync vendor profiles FROM Drive at start of assess ───────────
     _assess_drive_cfg = None
     _assess_drive_folder_id = None
     _assess_drive_client = None
@@ -509,13 +519,11 @@ def assess(
     except Exception:
         pass  # Never let history writing crash the assess
 
-    # ── 7D: Sync vendor profiles TO Drive at end of assess ───────────
-    if _assess_drive_client and _assess_drive_folder_id:
-        try:
-            from core.profiles.vendor_cache import VendorProfileCache as _VPC4
-            _VPC4().sync_to_drive(_assess_drive_client, _assess_drive_folder_id)
-        except Exception:
-            pass  # Never block assess for Drive sync
+    # ── v1.4: Sync vendor profiles TO Drive at end of assess ─────────
+    try:
+        _resolver.sync_profile_to_drive()
+    except Exception:
+        pass  # Never block assess for Drive sync
 
     # Tip when no profile configured
     if not _config:
@@ -840,22 +848,31 @@ def _run_notify_setup(con) -> None:
     con.print(
         "  [color(245)]When you run bandit vendor add, Bandit queues[/]\n"
         "  [color(245)]IT notifications for integration setup.[/]\n"
-        "  [color(245)]Configure where to send them.[/]\n\n"
-        "  [color(220)]Note:[/] [color(245)]Sending is not yet available in v1.3.[/]\n"
-        "  [color(245)]Notifications are queued and will be sent in v1.4[/]\n"
-        "  [color(245)]when Slack and email integration is enabled.[/]\n"
+        "  [color(245)]Configure where to send them.[/]\n"
     )
 
     email = Prompt.ask(
         "  IT team email address (or Enter to skip)",
         default=""
     ).strip()
-    slack = Prompt.ask(
-        "  IT Slack channel (or Enter to skip)",
+
+    slack_channel = Prompt.ask(
+        "  Slack channel name e.g. #it-helpdesk (or Enter to skip)",
         default=""
     ).strip()
 
-    if not email and not slack:
+    con.print()
+    con.print(
+        "  [color(245)]Slack webhook URL — find it at:[/]\n"
+        "  [color(220)]api.slack.com/apps[/] [color(245)]→ Incoming Webhooks → Add webhook[/]\n"
+        "  [color(245)]Leave blank to use email only.[/]\n"
+    )
+    slack_webhook = Prompt.ask(
+        "  Slack webhook URL (or Enter to skip)",
+        default=""
+    ).strip()
+
+    if not email and not slack_channel and not slack_webhook:
         con.print("  [color(245)]No notification settings saved.[/]\n")
         return
 
@@ -863,8 +880,10 @@ def _run_notify_setup(con) -> None:
     notifications = {}
     if email:
         notifications["it_contact_email"] = email
-    if slack:
-        notifications["it_slack_channel"] = slack
+    if slack_channel:
+        notifications["it_slack_channel"] = slack_channel
+    if slack_webhook:
+        notifications["slack_webhook_url"] = slack_webhook
     cfg["notifications"] = notifications
 
     config_path = pathlib.Path("bandit.config.yml")
@@ -872,9 +891,16 @@ def _run_notify_setup(con) -> None:
         config_path.write_text(
             yaml.dump(cfg, default_flow_style=False, allow_unicode=True)
         )
+        saved = []
+        if email:
+            saved.append(f"email → {email}")
+        if slack_channel:
+            saved.append(f"channel → {slack_channel}")
+        if slack_webhook:
+            saved.append("Slack webhook → configured")
         con.print(
-            "  [green]✓[/green] Notification settings saved.\n"
-            "  [dim]Queued notifications will be sent in a future update.[/]\n"
+            f"  [green]✓[/green] Notification settings saved: "
+            f"{', '.join(saved)}\n"
         )
     except Exception as e:
         con.print(f"  [color(196)]✗[/]  Could not save config: {e}\n")
@@ -1590,6 +1616,61 @@ def _vendor_slug(vendor: str) -> str:
 # Register vendor command group
 from cli.vendor import vendor as _vendor_group  # noqa: E402
 main.add_command(_vendor_group, "vendor")
+
+# ── v1.4: Dashboard command group ────────────────────────
+from cli.dashboard import dashboard  # noqa: E402
+from cli.dashboard import schedule_show, notify_send, register_export  # noqa: E402
+main.add_command(dashboard)
+
+
+# ── v1.4: Top-level aliases ──────────────────────────────
+
+@main.command("schedule")
+@click.option("--due", is_flag=True, default=False,
+    help="Show only due/overdue vendors")
+@click.option("--within", default=None, type=int,
+    help="Show vendors due within N days")
+@click.option("--json", "as_json", is_flag=True, default=False,
+    help="Output raw JSON")
+@click.pass_context
+def schedule_alias(ctx, due, within, as_json):
+    """Reassessment schedule (alias for dashboard schedule)."""
+    ctx.invoke(
+        schedule_show,
+        due=due,
+        within=within,
+        as_json=as_json,
+    )
+
+
+@main.command("notify")
+@click.argument("vendor_name", required=False)
+@click.option("--all", "send_all", is_flag=True, default=False,
+    help="Send all pending notifications")
+@click.option("--json", "as_json", is_flag=True, default=False,
+    help="Output raw JSON")
+@click.pass_context
+def notify_alias(ctx, vendor_name, send_all, as_json):
+    """Send IT notifications (alias for dashboard notify)."""
+    ctx.invoke(
+        notify_send,
+        vendor_name=vendor_name,
+        send_all=send_all,
+        as_json=as_json,
+    )
+
+
+@main.command("register")
+@click.option("--format", "fmt",
+    type=click.Choice(["csv", "json", "html"]),
+    default="csv", help="Output format")
+@click.option("--out", default=None,
+    help="Output file path")
+@click.pass_context
+def register_alias(ctx, fmt, out):
+    """Export TPRM register (alias for dashboard register)."""
+    ctx.invoke(register_export, fmt=fmt, out=out)
+
 
 if __name__ == "__main__":
     main()

@@ -16,7 +16,7 @@ import datetime
 import pathlib
 from typing import TYPE_CHECKING
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 
 if TYPE_CHECKING:
     from core.agents.privacy_bandit import PrivacyAssessment
