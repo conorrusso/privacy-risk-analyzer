@@ -14,20 +14,14 @@ If you are setting up Drive for the first time with existing vendor folders:
 # 1. Configure Drive credentials
 bandit setup --drive
 
-# 2. Discover and link your existing Drive folders
-#    Scans your Vendor Reviews root folder and links
-#    any subfolders that match local vendor profiles.
-#    Flags unmatched folders with instructions.
-bandit sync --discover
-
-# 3. Sync profiles and documents
+# 2. Discover, link, and sync everything
+#    Scans your Bandit root folder, links subfolders that match
+#    vendor profiles, detects deleted folders, pulls documents.
 bandit sync
 
-# 4. Verify everything is connected
+# 3. Verify everything is connected
 bandit dashboard
 ```
-
-If sync shows "Drive configured — no folder linked" for a vendor, run `bandit sync --discover` first.
 
 If a Drive folder has no local profile yet:
 
@@ -51,11 +45,7 @@ bandit sync "Cyera"      # one vendor
 bandit sync --verbose    # show document names
 ```
 
-To re-scan Drive for new folders:
-
-```bash
-bandit sync --discover
-```
+To pick up new Drive folders added since last sync, just run `bandit sync` again — discovery runs automatically every time.
 
 ---
 

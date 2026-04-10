@@ -76,8 +76,7 @@ def show_welcome(console: Console | None = None) -> None:
         (_cmd("bandit schedule", ""),                               "Reassessment schedule"),
         (_cmd("bandit register", ""),                               "Export TPRM register (CSV / JSON / HTML)"),
         (_cmd("bandit notify",  "", "--all"),                       "Send queued IT notifications"),
-        (_cmd("bandit sync",    ""),                                "Sync profiles and docs from Drive"),
-        (_cmd("bandit sync",    "", "--discover"),                  "Link Drive folders to vendor profiles"),
+        (_cmd("bandit sync",    ""),                                "Sync with Drive — discovers, links, detects deletions, pulls documents"),
     ]
     for cmd_text, desc in commands:
         cmd_table.add_row(cmd_text, desc)
@@ -125,9 +124,8 @@ def show_welcome(console: Console | None = None) -> None:
 
     _wf_heading("First time with Google Drive:")
     _wf_step("1.", "bandit setup --drive")
-    _wf_step("2.", "bandit sync --discover", "link existing folders")
-    _wf_step("3.", "bandit sync",            "pull docs + profiles")
-    _wf_step("4.", "bandit dashboard",       "view portfolio")
+    _wf_step("2.", "bandit sync",      "discovers, links, pulls docs")
+    _wf_step("3.", "bandit dashboard", "view portfolio")
     wf_lines.append("\n")
 
     _wf_heading("Add a new vendor:")

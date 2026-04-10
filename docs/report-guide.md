@@ -8,17 +8,15 @@ Open the file in any browser. All sections are collapsible — click a dimension
 
 ## Understanding assessment scope
 
-Every report shows what documents were assessed. In v1.0 this is always the public privacy policy.
+Every report shows what documents were assessed. The scope depends on what you provided:
 
-What this means for each dimension:
+| Dimension | Public policy only | With DPA | With DPA + supporting docs |
+|-----------|--------------------|----------|---------------------------|
+| D1, D3, D6, D7 | Fully assessed | Fully assessed | Fully assessed |
+| D2, D4, D5 | Partially assessed | Fully assessed | Fully assessed |
+| D8 | Not assessed | Fully assessed | Fully assessed |
 
-| Dimension | Status | Notes |
-|-----------|--------|-------|
-| D1, D3, D6, D7 | Fully assessed | Sufficient from public privacy policy |
-| D2, D4, D5 | Partially assessed | Scores reflect what's in the policy — DPA would complete these |
-| D8 | Not assessed | Requires DPA document |
-
-When you see **Requires DPA** on D8: this is not a failure. It means Bandit cannot assess DPA completeness without the DPA document. This is expected in v1.0. Google Drive integration in v1.1 will enable full D8 scoring.
+When you see **Requires DPA** on D8: this is not a failure. It means Bandit cannot assess DPA completeness without the DPA document. Upload the DPA with `--docs` or connect Google Drive with `--drive` to enable full D8 scoring.
 
 When you see **Partially assessed** on D2, D4, or D5: the score reflects genuine evidence from the policy. The DPA would fill in the contractual obligations that a privacy policy doesn't cover.
 
@@ -261,3 +259,62 @@ D8 is fully scored against the GDPR Art. 28(3)(a)-(h) checklist. Each provision 
 | Art. 28(3)(h) | Audit rights and inspection access |
 
 Missing provisions appear as gaps with specific redline language in the For Legal section.
+
+---
+
+## Legal Bandit additions to the report
+
+When DPA or MSA documents are present, Bandit automatically runs Legal Bandit after the main assessment. This adds several elements to both the terminal output and the HTML report.
+
+### Score source attribution
+
+Each dimension header in the expanded view shows where its score came from:
+
+```
+D5  Breach Notification   4/5   Source: Contract
+D2  Sub-processors        3/5   Source: Policy
+D8  DPA Completeness      2/5   Source: Contract
+```
+
+- **Policy** — score derived from the public privacy policy
+- **Contract** — score upgraded (or downgraded) by a contractual commitment in the DPA or MSA
+- **Policy + Contract** — both sources contributed; the stronger commitment was used
+
+This matters because a contractual commitment is enforceable. A policy claim is not.
+
+### Contract findings in the terminal
+
+After the assessment completes, the terminal shows a contract findings summary:
+
+```
+Contract findings
+─────────────────────────────────────────────
+D5  Breach Notification   1 → 4  ↑ Contract   48-hour SLA in DPA §8.2
+D8  DPA Completeness      N/A → 2  ↑ Contract  Art.28 checklist — 3 gaps
+D7  Data Retention        3 → 3    Contract    No change — policy and DPA consistent
+```
+
+The format `D5 1→4 ↑ Contract` means: D5 was scored 1 from the public policy alone; the DPA raised it to 4.
+
+### Policy/contract conflict banner
+
+If the DPA and privacy policy make contradictory commitments, a conflict banner appears at the top of the report:
+
+```
+⚠ Policy/contract conflict detected
+  D4 Transfer Mechanisms: Privacy policy references Privacy Shield (invalid).
+  DPA §6 uses SCC Module 2 (valid). DPA governs — score based on DPA.
+```
+
+Bandit always scores based on the DPA in a conflict. The banner is shown so Legal can reconcile or update the public policy.
+
+### For Legal panel — brief summary
+
+The Legal team summary panel at the bottom of the report is extended when Legal Bandit runs. It includes:
+
+- A brief summary of contract gap findings (gaps, vague provisions, missing provisions)
+- Link to the standalone legal redline brief HTML file (saved alongside the main report)
+- Policy/contract conflicts requiring policy updates
+- MSA commercial terms summary (liability cap, indemnification, data on termination)
+
+The full redline brief with verbatim quotes, specific replacement language, and enforcement precedents is in the separate brief file. See [Legal Bandit Guide](legal-guide.md) for how to read it.

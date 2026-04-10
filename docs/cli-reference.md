@@ -21,8 +21,7 @@
 | `bandit batch vendors.txt` | Assess a list of vendors from a file |
 | `bandit rubric` | Show the full scoring rubric |
 | `bandit rubric --dim D6` | Show detail for one dimension |
-| `bandit sync` | Sync profiles and docs from Drive |
-| `bandit sync --discover` | Link Drive folders to vendor profiles |
+| `bandit sync` | Full Drive sync — discovers new folders, detects deletions, pulls documents |
 | `bandit sync "Vendor"` | Sync a single vendor |
 | `bandit sync --verbose` | Show document names found |
 | `bandit dashboard` | Portfolio risk overview |
@@ -562,7 +561,12 @@ PDF (`.pdf`) · Word (`.docx` `.doc`) · HTML (`.html` `.htm`) · Text (`.txt` `
 
 ## bandit sync
 
-Sync vendor profiles and documents from Google Drive without running a full assessment.
+Sync vendor profiles and documents from Google Drive. Runs in four steps automatically — no flags required:
+
+1. **Discover** — scans your Bandit root folder in Drive and links any subfolders that match local vendor profiles (case-insensitive name match)
+2. **Detect deletions** — checks all linked profiles; if a Drive folder has been moved or deleted, clears the link so it can be rediscovered later
+3. **Pull documents** — downloads the latest docs for every vendor with a linked folder
+4. **Report** — shows a summary and flags any Drive folders with no matching local profile
 
 ```
 bandit sync [VENDOR_NAME] [OPTIONS]
@@ -572,40 +576,25 @@ bandit sync [VENDOR_NAME] [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `--discover` | Scan Drive root folder and link subfolders to matching vendor profiles |
 | `--verbose`, `-v` | Show each document name found |
 | `--json` | Output structured JSON |
 
-### First time: --discover
-
-If your Drive folders exist but aren't linked to local vendor profiles, run:
-
 ```bash
-bandit sync --discover
-```
-
-This scans your Bandit root folder in Drive and links subfolders to matching vendor profiles. Exact name match first (case-insensitive), then fuzzy (substring). Unmatched folders are flagged:
-
-```
-✓  Cyera        linked to Cyera
-·  Salesforce   already linked
-?  Snowflake    no local profile — run: bandit vendor add "Snowflake"
-```
-
-Run `bandit sync --discover` any time you add new folders to Drive manually.
-
-### Ongoing sync
-
-`bandit sync` reads the stored `drive_folder_id` from each vendor profile — no search needed, direct fetch.
-
-```bash
-bandit sync                   # all vendors
-bandit sync "Cyera"           # one vendor
+bandit sync                   # all vendors — discover, link, sync
+bandit sync "Cyera"           # one vendor only
 bandit sync --verbose         # show each document found
 bandit sync --json            # structured JSON output
 ```
 
-Sync runs automatically at the start and end of every `bandit assess --drive` run. Use `bandit sync` standalone when you want to refresh profiles or check document counts without running an assessment.
+Unmatched Drive folders (no local profile) are shown at the end:
+
+```
+✓  Cyera        linked — 3 docs
+·  Salesforce   already linked — 5 docs
+?  Snowflake    no local profile — run: bandit vendor add "Snowflake"
+```
+
+Sync runs automatically at the start and end of every `bandit assess --drive` run. Use `bandit sync` standalone when you want to refresh profiles or check document counts without running a full assessment.
 
 ---
 
