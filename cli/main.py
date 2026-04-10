@@ -1774,7 +1774,9 @@ def sync(vendor_name, as_json, verbose):
                 f"Could not scan Drive root: {e}"
             )
 
-        # ── STEP 2: Check for deleted folders ──────
+        # ── STEP 2: Verify linked folders still exist
+        # Before unlinking, try to re-find the folder
+        # by name in case the ID is stale
         all_profiles = cache.list_all()
         for profile in all_profiles:
             if not profile.drive_folder_id:
@@ -1783,16 +1785,34 @@ def sync(vendor_name, as_json, verbose):
                 drive.list_files_in_folder(
                     profile.drive_folder_id
                 )
+                # Folder exists — nothing to do
             except Exception:
-                console.print(
-                    f"  [yellow]⚠[/yellow]  "
-                    f"[bold]{profile.vendor_name}[/bold]"
-                    f"  [dim]Drive folder deleted or "
-                    f"moved — unlinking[/dim]"
-                )
-                profile.drive_folder_id = None
-                profile.drive_folder_name = None
-                cache.save(profile.vendor_name, profile)
+                # Folder ID failed — try to find by name
+                # before deciding it's gone
+                try:
+                    candidates = drive.find_vendor_folder_fuzzy(
+                        profile.vendor_name,
+                        root_folder_id
+                    )
+                    if candidates:
+                        # Found it under a slightly different
+                        # ID — relink silently
+                        profile.drive_folder_id = candidates[0]["id"]
+                        profile.drive_folder_name = candidates[0]["name"]
+                        cache.save(profile.vendor_name, profile)
+                    else:
+                        # Genuinely not found — warn but
+                        # do NOT unlink automatically
+                        console.print(
+                            f"  [yellow]⚠[/yellow]  "
+                            f"[bold]{profile.vendor_name}[/bold]"
+                            f"  [dim]Drive folder may have been "
+                            f"moved or deleted. Verify in Drive "
+                            f"and run bandit sync to relink.[/dim]"
+                        )
+                except Exception:
+                    # Can't even search — skip quietly
+                    pass
 
     # ── STEP 3: Sync all vendors ───────────────────
     console.print()

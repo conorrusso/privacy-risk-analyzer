@@ -288,14 +288,41 @@ class VendorProfileCache:
             if not remote_data:
                 return False
 
-            # Merge: remote is source of truth
-            # but don't wipe local-only entries
+            # Merge: remote fills in entries that don't
+            # exist locally. For existing entries, keep
+            # whichever assessment_history is longer
+            # (local wins if an assess run just completed
+            # but the Drive push hasn't happened yet).
             local_data = self._load()
 
             for slug, vendor_data in remote_data.items():
                 if slug.startswith("_"):
                     continue  # skip metadata keys
-                local_data[slug] = vendor_data
+                if slug in local_data:
+                    local_hist = local_data[slug].get(
+                        "assessment_history", []
+                    ) or []
+                    remote_hist = vendor_data.get(
+                        "assessment_history", []
+                    ) or []
+                    # Start from the remote version
+                    merged = dict(vendor_data)
+                    # Preserve local history if it is longer
+                    # (Drive push may not have completed yet)
+                    if len(local_hist) > len(remote_hist):
+                        merged["assessment_history"] = local_hist
+                        merged["current_risk_tier"] = local_data[slug].get(
+                            "current_risk_tier"
+                        )
+                        merged["last_assessed"] = local_data[slug].get(
+                            "last_assessed"
+                        )
+                        merged["next_due"] = local_data[slug].get(
+                            "next_due"
+                        )
+                    local_data[slug] = merged
+                else:
+                    local_data[slug] = vendor_data
 
             self._write(local_data)
             return True
