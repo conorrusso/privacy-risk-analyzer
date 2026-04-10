@@ -844,12 +844,32 @@ def write_html_report(
     )
 
     # ── Frameworks ────────────────────────────────────────────────────
-    fw_html = (
-        "<ul class='fw-list'>"
-        + "".join(f"<li>✓&nbsp; {_h(f)}</li>" for f in result.framework_evidence)
-        + "</ul>"
-        if result.framework_evidence else '<p class="none-p">None detected.</p>'
-    )
+    _FW_LABELS = {
+        "soc2_type2_privacy_tsc":  "SOC 2 Type II (with Privacy TSC)",
+        "soc2_type2_security_only": "SOC 2 Type II",
+        "iso_27001_only":           "ISO 27001",
+        "iso_27701_certified":      "ISO 27701",
+        "iso_42001_certified":      "ISO 42001",
+    }
+    _fw_labels_detected = [
+        _FW_LABELS.get(k, k) for k in result.framework_evidence
+    ]
+    if _fw_labels_detected:
+        _scope_note = (
+            '<p style="font-size:11px;color:#666;margin-top:8px;font-style:italic;">'
+            'Certification documents were ingested but their content has not been deeply analysed. '
+            'Scores reflect DPA and privacy policy language only. '
+            'SOC 2 and ISO audit content analysis is coming in a future Bandit version.'
+            '</p>'
+        )
+        fw_html = (
+            "<ul class='fw-list'>"
+            + "".join(f"<li>✓&nbsp; {_h(f)}</li>" for f in _fw_labels_detected)
+            + "</ul>"
+            + _scope_note
+        )
+    else:
+        fw_html = '<p class="none-p">None detected.</p>'
 
     # ── Policy/contract conflict banner (7C) ─────────────────────────
     conflict_banner = ""
