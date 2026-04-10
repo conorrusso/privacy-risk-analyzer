@@ -721,6 +721,19 @@ def _team_summary(result, assessment, legal_brief_path: str | None = None) -> st
     has_soc2 = any("soc2" in f.lower() for f in fw)
     has_iso  = any("iso_277" in f.lower() or "iso_2700" in f.lower() for f in fw)
 
+    # Also check assessed doc filenames as a fallback — if a SOC 2 or ISO
+    # cert document was successfully ingested, don't ask for one we already have.
+    _assessed = [d.lower() for d in getattr(result, "documents_assessed", [])]
+    if not has_soc2:
+        has_soc2 = any("soc2" in d or "soc-2" in d for d in _assessed)
+    if not has_iso:
+        has_iso = any(
+            "iso27001" in d or "iso-27001" in d or
+            "iso27701" in d or "iso-27701" in d or
+            "iso42001" in d or "iso-42001" in d
+            for d in _assessed
+        )
+
     reqs = ""
     if not has_soc2:
         reqs += '<div class="sec-req">→ Request SOC 2 Type II report (with Privacy TSC if available)</div>'

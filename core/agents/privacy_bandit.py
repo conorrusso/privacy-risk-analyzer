@@ -378,9 +378,12 @@ class PrivacyBandit(BaseBandit):
                 _sigs.setdefault("d3_dsar_procedure_documented", True)
                 _sigs.setdefault("d3_some_rights_listed", True)
 
-            # Build framework_certifications from successfully extracted
-            # certification documents. The policy extraction prompt only
-            # sees the web page — it cannot detect certs from PDFs.
+        # Build framework_certifications from successfully extracted
+        # certification documents. Runs whenever docs were assessed,
+        # regardless of whether any signals were extracted — a SOC 2
+        # report is evidence of certification even if signal parsing
+        # produced no keys.
+        if ready_docs:
             _doc_types = {d.doc_type for d in ready_docs if d.extraction_ok}
             _fw_certs = raw_json.setdefault("framework_certifications", {})
 
@@ -398,6 +401,11 @@ class PrivacyBandit(BaseBandit):
 
             if DocumentType.ISO27701 in _doc_types:
                 _fw_certs.setdefault("iso_27701_certified", True)
+
+            if DocumentType.ISO42001 in _doc_types:
+                _fw_certs.setdefault("iso_42001_certified", True)
+            elif all_doc_signals.get("iso42001_extension"):
+                _fw_certs.setdefault("iso_42001_certified", True)
 
         # ── Evidence confidence ───────────────────────────────────────
         evidence_confidence = self._calculate_evidence_confidence(

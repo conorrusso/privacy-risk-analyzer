@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Callable
 import logging
+import re
 import tempfile
 
 from core.profiles.vendor_cache import VendorProfileCache
@@ -216,6 +217,27 @@ class VendorDataResolver:
             errors=errors,
         )
 
+    # Matches date suffix in report filenames: YYYY-MM-DD
+    _REPORT_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+    def _should_skip_doc(self, name: str) -> bool:
+        """
+        Return True for files that are Bandit-generated
+        reports or other non-vendor-policy documents.
+        Excludes: HTML files, report HTML, legal briefs,
+        and any file whose name contains a YYYY-MM-DD date.
+        """
+        lower = name.lower()
+        if lower.endswith(".html"):
+            return True
+        if "privacy-assessment" in lower:
+            return True
+        if "-legal" in lower:
+            return True
+        if self._REPORT_DATE_RE.search(name):
+            return True
+        return False
+
     def _load_local_docs(self) -> list[ResolvedDocument]:
         """Load documents from local path."""
         docs = []
@@ -232,9 +254,13 @@ class VendorDataResolver:
         )
 
         for f in path.iterdir():
-            if f.is_file() and f.suffix.lower() in (
-                ".pdf", ".docx", ".doc",
-                ".txt", ".json", ".html"
+            if not f.is_file():
+                continue
+            if self._should_skip_doc(f.name):
+                logger.debug(f"Skipping report file: {f.name}")
+                continue
+            if f.suffix.lower() in (
+                ".pdf", ".docx", ".doc", ".txt", ".json"
             ):
                 try:
                     docs.append(ResolvedDocument(
@@ -266,8 +292,11 @@ class VendorDataResolver:
                 self.drive_folder_id
             )
             for f in files:
-                # Skip existing assessment reports
-                if "privacy-assessment" in f["name"]:
+                # Skip report and generated files
+                if self._should_skip_doc(f["name"]):
+                    logger.debug(
+                        f"Skipping report file: {f['name']}"
+                    )
                     continue
                 try:
                     with tempfile.TemporaryDirectory() as tmp:
