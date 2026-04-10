@@ -76,6 +76,8 @@ def show_welcome(console: Console | None = None) -> None:
         (_cmd("bandit schedule", ""),                               "Reassessment schedule"),
         (_cmd("bandit register", ""),                               "Export TPRM register (CSV / JSON / HTML)"),
         (_cmd("bandit notify",  "", "--all"),                       "Send queued IT notifications"),
+        (_cmd("bandit sync",    ""),                                "Sync profiles and docs from Drive"),
+        (_cmd("bandit sync",    "", "--discover"),                  "Link Drive folders to vendor profiles"),
     ]
     for cmd_text, desc in commands:
         cmd_table.add_row(cmd_text, desc)
@@ -102,6 +104,51 @@ def show_welcome(console: Console | None = None) -> None:
     console.print(Panel(
         ex_lines,
         title="[bold color(172)]EXAMPLES[/]",
+        border_style="color(238)",
+    ))
+
+    # ── WORKFLOWS ────────────────────────────────────────────────────
+    def _step(n: str, cmd: str, note: str = "") -> None:
+        pass  # helper used inline below
+
+    wf_lines = Text()
+
+    def _wf_heading(label: str) -> None:
+        wf_lines.append(f"  {label}\n", style="bold color(245)")
+
+    def _wf_step(prefix: str, cmd: str, note: str = "") -> None:
+        wf_lines.append(f"    {prefix}  ", style="color(245)")
+        wf_lines.append(cmd, style="color(220)")
+        if note:
+            wf_lines.append(f"   # {note}", style="dim color(245)")
+        wf_lines.append("\n")
+
+    _wf_heading("First time with Google Drive:")
+    _wf_step("1.", "bandit setup --drive")
+    _wf_step("2.", "bandit sync --discover", "link existing folders")
+    _wf_step("3.", "bandit sync",            "pull docs + profiles")
+    _wf_step("4.", "bandit dashboard",       "view portfolio")
+    wf_lines.append("\n")
+
+    _wf_heading("Add a new vendor:")
+    _wf_step("1.", 'bandit vendor add "VendorName"')
+    _wf_step("2.", 'bandit assess "VendorName" --drive')
+    wf_lines.append("\n")
+
+    _wf_heading("Run a full assessment:")
+    _wf_step("  ", 'bandit assess "VendorName" --drive --verbose')
+    wf_lines.append("\n")
+
+    _wf_heading("See what needs reassessment:")
+    _wf_step("  ", "bandit schedule --due")
+    wf_lines.append("\n")
+
+    _wf_heading("Export vendor register:")
+    _wf_step("  ", "bandit register --format html")
+
+    console.print(Panel(
+        wf_lines,
+        title="[bold color(172)]COMMON WORKFLOWS[/]",
         border_style="color(238)",
     ))
 

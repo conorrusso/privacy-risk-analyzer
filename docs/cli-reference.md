@@ -21,6 +21,16 @@
 | `bandit batch vendors.txt` | Assess a list of vendors from a file |
 | `bandit rubric` | Show the full scoring rubric |
 | `bandit rubric --dim D6` | Show detail for one dimension |
+| `bandit sync` | Sync profiles and docs from Drive |
+| `bandit sync --discover` | Link Drive folders to vendor profiles |
+| `bandit sync "Vendor"` | Sync a single vendor |
+| `bandit sync --verbose` | Show document names found |
+| `bandit dashboard` | Portfolio risk overview |
+| `bandit schedule` | Reassessment schedule |
+| `bandit schedule --due` | Overdue vendors only |
+| `bandit register` | Export TPRM register (CSV) |
+| `bandit register --format html` | HTML register |
+| `bandit notify --all` | Send all pending IT notifications |
 
 ---
 
@@ -547,3 +557,107 @@ Bandit auto-detects these document types:
 
 **Supported file formats:**
 PDF (`.pdf`) · Word (`.docx` `.doc`) · HTML (`.html` `.htm`) · Text (`.txt` `.md`) · JSON (`.json`)
+
+---
+
+## bandit sync
+
+Sync vendor profiles and documents from Google Drive without running a full assessment.
+
+```
+bandit sync [VENDOR_NAME] [OPTIONS]
+```
+
+**Options**
+
+| Option | Description |
+|--------|-------------|
+| `--discover` | Scan Drive root folder and link subfolders to matching vendor profiles |
+| `--verbose`, `-v` | Show each document name found |
+| `--json` | Output structured JSON |
+
+### First time: --discover
+
+If your Drive folders exist but aren't linked to local vendor profiles, run:
+
+```bash
+bandit sync --discover
+```
+
+This scans your Bandit root folder in Drive and links subfolders to matching vendor profiles. Exact name match first (case-insensitive), then fuzzy (substring). Unmatched folders are flagged:
+
+```
+✓  Cyera        linked to Cyera
+·  Salesforce   already linked
+?  Snowflake    no local profile — run: bandit vendor add "Snowflake"
+```
+
+Run `bandit sync --discover` any time you add new folders to Drive manually.
+
+### Ongoing sync
+
+`bandit sync` reads the stored `drive_folder_id` from each vendor profile — no search needed, direct fetch.
+
+```bash
+bandit sync                   # all vendors
+bandit sync "Cyera"           # one vendor
+bandit sync --verbose         # show each document found
+bandit sync --json            # structured JSON output
+```
+
+Sync runs automatically at the start and end of every `bandit assess --drive` run. Use `bandit sync` standalone when you want to refresh profiles or check document counts without running an assessment.
+
+---
+
+## bandit dashboard
+
+Portfolio risk overview across all vendors.
+
+```bash
+bandit dashboard                    # full portfolio table
+bandit dashboard --risk HIGH        # filter by tier
+bandit dashboard --due              # vendors due for reassessment
+bandit dashboard --json             # structured JSON
+```
+
+---
+
+## bandit schedule
+
+Reassessment schedule sorted by urgency.
+
+```bash
+bandit schedule                     # all vendors
+bandit schedule --due               # overdue + due soon only
+bandit schedule --within 30         # due within 30 days
+bandit schedule --json
+```
+
+Urgency levels: `OVERDUE` · `DUE SOON` (≤30 days) · `UPCOMING` (≤90 days) · `OK`
+
+---
+
+## bandit register
+
+Export the full TPRM vendor register.
+
+```bash
+bandit register                     # CSV to stdout
+bandit register --format json       # JSON to stdout
+bandit register --format html       # saves HTML file
+bandit register --out report.csv    # save to path
+```
+
+---
+
+## bandit notify
+
+Send queued IT notifications for vendor integrations.
+
+```bash
+bandit notify "Cyera"               # single vendor
+bandit notify --all                 # all pending
+bandit notify --all --json
+```
+
+Requires `bandit setup --notify` to configure Slack webhook or email address.

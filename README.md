@@ -300,6 +300,16 @@ bandit assess "Salesforce" --drive
 bandit batch vendors.txt --drive
 ```
 
+**First time with existing Drive folders:**
+
+```bash
+bandit setup --drive           # configure credentials
+bandit sync --discover         # link existing folders to vendor profiles
+bandit sync                    # pull docs + profiles
+bandit assess "Vendor" --drive # run with Drive docs
+bandit dashboard               # view portfolio
+```
+
 Full setup guide: [docs/google-drive-setup.md](docs/google-drive-setup.md)
 
 ### Local vs Drive

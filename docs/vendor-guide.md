@@ -74,7 +74,7 @@ bandit vendor show "HubSpot"
 Shows:
 - Intake completion status and date
 - All intake answers
-- Assessment history (last 5 entries) with risk tier, score, and next due date
+- Assessment history (last 10 entries) with risk tier, score, and next due date
 
 ---
 
@@ -146,6 +146,61 @@ Next due dates are calculated from your reassessment config (`bandit setup` → 
 | HIGH | Every 6 months |
 | MEDIUM | Every year |
 | LOW | Every 2 years |
+
+These defaults can be customised per tier in `bandit.config.yml`. Run `bandit setup --show` to see your active cadence.
+
+### How next due date is calculated
+
+When `bandit assess` completes, it writes the next due date into the vendor profile:
+
+```
+next_due = assessment_date + cadence_days[risk_tier]
+```
+
+For example: a HIGH-risk vendor assessed on 2026-04-01 with a 6-month cadence gets `next_due = 2026-10-01`.
+
+If the vendor's risk tier changes between assessments (e.g. MEDIUM → HIGH), the next due date is recalculated from the new tier's cadence at the time the new assessment is written.
+
+### bandit vendor list --due
+
+The `--due` flag filters to vendors where `next_due <= today`. Vendors that have never been assessed are always included (no assessment means always due).
+
+```bash
+bandit vendor list --due
+```
+
+Overdue vendors show a red warning in the Next due column. Use this as your weekly triage view — assess overdue vendors first.
+
+---
+
+## Google Drive workflow
+
+### Linking existing Drive folders
+
+If you already have vendor folders in Drive before running `bandit vendor add`, link them with:
+
+```bash
+bandit sync --discover
+```
+
+Bandit scans the root folder and links matches automatically. You will see:
+
+```
+✓  Cyera      linked to Cyera
+?  Snowflake  no local profile — run: bandit vendor add "Snowflake"
+```
+
+### Adding a vendor with an existing Drive folder
+
+If a Drive folder already exists for the vendor, `bandit vendor add` will find it automatically during intake — exact match uses it silently, close match asks for confirmation.
+
+### Sync sequence
+
+```bash
+bandit sync --discover   # link existing folders
+bandit sync              # pull latest docs + profiles
+bandit dashboard         # view updated portfolio
+```
 
 ---
 

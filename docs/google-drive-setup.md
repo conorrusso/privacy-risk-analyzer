@@ -6,6 +6,59 @@ Once connected, run `bandit assess "Salesforce" --drive` and Bandit finds, downl
 
 ---
 
+## Setup sequence
+
+If you are setting up Drive for the first time with existing vendor folders:
+
+```bash
+# 1. Configure Drive credentials
+bandit setup --drive
+
+# 2. Discover and link your existing Drive folders
+#    Scans your Vendor Reviews root folder and links
+#    any subfolders that match local vendor profiles.
+#    Flags unmatched folders with instructions.
+bandit sync --discover
+
+# 3. Sync profiles and documents
+bandit sync
+
+# 4. Verify everything is connected
+bandit dashboard
+```
+
+If sync shows "Drive configured — no folder linked" for a vendor, run `bandit sync --discover` first.
+
+If a Drive folder has no local profile yet:
+
+```bash
+bandit vendor add "VendorName"
+```
+
+Bandit will find and link the existing folder automatically during intake.
+
+---
+
+## Ongoing sync
+
+`bandit sync` runs automatically at the start and end of every `bandit assess --drive` run.
+
+To manually sync without running an assessment:
+
+```bash
+bandit sync              # all vendors
+bandit sync "Cyera"      # one vendor
+bandit sync --verbose    # show document names
+```
+
+To re-scan Drive for new folders:
+
+```bash
+bandit sync --discover
+```
+
+---
+
 ## Before you start
 
 You will need:
@@ -216,6 +269,54 @@ Scanned PDFs (no text layer) cannot be read — use text-based PDFs instead.
 
 **"Access denied" on Drive folder**
 Make sure the Google account you authenticated with has access to the Drive folder you configured.
+
+---
+
+## Vendor profile sync (v1.3)
+
+In addition to reading documents and saving reports, Bandit syncs your vendor profile database to Drive. This lets your whole team share a single source of truth for vendor intake data and assessment history.
+
+### How folder matching works
+
+When you run `bandit vendor add "HubSpot"`, Bandit checks Drive before starting the wizard:
+
+- **Exact match** — a folder named "HubSpot" (case-insensitive) already exists → linked silently, no prompt
+- **Close match** — a folder named "Hub Spot" or "hubspot" is found → Bandit asks: *"Found 'Hub Spot' — use this folder? [Y/n]"*
+- **No match** — no folder found → Bandit offers to create one at the end of the wizard
+
+You can also skip Drive linking entirely and manage the folder manually later.
+
+### Where profiles are stored
+
+Vendor profiles are stored in two places:
+
+| Location | Purpose |
+|----------|---------|
+| `~/.bandit/vendor-profiles.json` | Local cache — always used as primary |
+| `.vendor-profiles.json` in Drive root | Shared copy — synced to/from Drive |
+
+The file is stored in your **Bandit root folder** in Drive (the same folder you configured in `bandit setup --drive`), not inside individual vendor subfolders.
+
+### When sync happens
+
+Bandit syncs the profile database at the following points:
+
+- After `bandit vendor add` completes
+- After `bandit vendor edit` completes
+- At the start of `bandit assess --drive` (pulls latest from Drive before assessing)
+- At the end of `bandit assess --drive` (pushes updated history after assessing)
+
+### Sync is non-blocking
+
+If Drive is unavailable or the sync fails for any reason, Bandit continues normally using the local cache. Sync failures are logged but never interrupt an assessment or wizard.
+
+The local cache is always the write target first. Drive sync is best-effort.
+
+### Team sharing
+
+All team members with access to the Bandit Drive root folder share the same `.vendor-profiles.json`. The sync model is last-write-wins — simultaneous writes from two machines could overwrite each other. In practice this is rare because assessments take several minutes.
+
+For teams running frequent concurrent assessments, treat the Drive copy as a periodic backup and reconcile locally if needed.
 
 ---
 
