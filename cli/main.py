@@ -1761,21 +1761,21 @@ def sync(vendor_name, as_json, verbose, discover):
                 continue
 
             # Find matching local profile
-            # 1. Exact match (case-insensitive)
+            # 1. Exact match (case-insensitive, stripped)
             match = next(
                 (p for p in all_profiles
-                 if p.vendor_name.lower()
-                 == folder_name.lower()),
+                 if p.vendor_name.lower().strip()
+                 == folder_name.lower().strip()),
                 None
             )
-            # 2. Contains match if no exact match
+            # 2. Fuzzy match
             if not match:
                 match = next(
                     (p for p in all_profiles
-                     if folder_name.lower()
-                     in p.vendor_name.lower()
-                     or p.vendor_name.lower()
-                     in folder_name.lower()),
+                     if folder_name.lower().strip()
+                     in p.vendor_name.lower().strip()
+                     or p.vendor_name.lower().strip()
+                     in folder_name.lower().strip()),
                     None
                 )
 
@@ -1807,8 +1807,12 @@ def sync(vendor_name, as_json, verbose, discover):
 
         console.print()
 
-        # After discovery, continue into normal sync below
-        # so profiles are immediately synced to Drive
+        # Re-initialize resolvers so they pick up
+        # folder IDs that were just linked by --discover
+        if vendor_name:
+            resolvers = [VendorDataResolver(vendor_name)]
+        else:
+            resolvers = get_all_vendor_resolvers()
 
     if vendor_name:
         resolvers = [VendorDataResolver(
