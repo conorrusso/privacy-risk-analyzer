@@ -320,6 +320,16 @@ class VendorProfileCache:
                         merged["next_due"] = local_data[slug].get(
                             "next_due"
                         )
+                    # Always preserve local Drive linkage —
+                    # Drive doesn't store folder IDs
+                    for drive_field in (
+                        "drive_folder_id",
+                        "drive_folder_name",
+                        "drive_last_synced",
+                    ):
+                        local_val = local_data[slug].get(drive_field)
+                        if local_val:
+                            merged[drive_field] = local_val
                     local_data[slug] = merged
                 else:
                     local_data[slug] = vendor_data
