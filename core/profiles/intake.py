@@ -96,13 +96,6 @@ def normalise_data_types(
             result.append(mapped)
     return result
 
-Q2_VOLUME = [
-    ("none",    "None"),
-    ("low",     "Low  (fewer than 1,000 records)"),
-    ("medium",  "Medium  (1,000 – 100,000 records)"),
-    ("high",    "High  (100,000+ records)"),
-]
-
 Q3_ENVIRONMENT = [
     ("production",  "Production data"),
     ("sandbox",     "Sandbox / test only"),
@@ -333,7 +326,7 @@ class IntakeWizard:
             resume = Confirm.ask(
                 f"\n  Incomplete intake found "
                 f"(completed Q{saved.get('last_q', 0)} "
-                f"of 12). Resume?",
+                f"of 11). Resume?",
                 default=True
             )
             if resume:
@@ -348,24 +341,23 @@ class IntakeWizard:
         self.console.print(
             f"\n  [bold dark_orange]Vendor intake "
             f"— {self.vendor_name}[/bold dark_orange]"
-            f"\n  [dim]12 questions · "
+            f"\n  [dim]11 questions · "
             f"takes about 3 minutes[/dim]\n"
         )
 
         try:
             questions = [
                 self._q1_data_types,
-                self._q2_volume,
-                self._q3_environment,
-                self._q4_access,
-                self._q5_sole_source,
-                self._q6_integrations,
-                self._q7_sso,
-                self._q8_ai,
-                self._q9_training,
-                self._q10_criticality,
-                self._q11_spend,
-                self._q12_renewal,
+                self._q2_environment,
+                self._q3_access,
+                self._q4_sole_source,
+                self._q5_integrations,
+                self._q6_sso,
+                self._q7_ai,
+                self._q8_training,
+                self._q9_criticality,
+                self._q10_spend,
+                self._q11_renewal,
             ]
 
             for i, question_fn in enumerate(questions):
@@ -434,22 +426,10 @@ class IntakeWizard:
                     "separated by commas[/red]"
                 )
 
-    def _q2_volume(self):
-        """Q2 — Data volume (single select)"""
+    def _q2_environment(self):
+        """Q2 — Production vs sandbox"""
         self.console.print(
-            "\n  [bold]Q2.[/bold] Volume of records "
-            f"{self.vendor_name} will access?\n"
-        )
-        for i, (_, label) in enumerate(Q2_VOLUME):
-            self.console.print(f"  {i+1}.  {label}")
-
-        choice = self._single_select(Q2_VOLUME)
-        self.answers["data_volume"] = choice
-
-    def _q3_environment(self):
-        """Q3 — Production vs sandbox"""
-        self.console.print(
-            "\n  [bold]Q3.[/bold] Will "
+            "\n  [bold]Q2.[/bold] Will "
             f"{self.vendor_name} access production "
             f"data?\n"
         )
@@ -459,10 +439,10 @@ class IntakeWizard:
         choice = self._single_select(Q3_ENVIRONMENT)
         self.answers["environment_access"] = choice
 
-    def _q4_access(self):
-        """Q4 — Blast radius (access impact)"""
+    def _q3_access(self):
+        """Q3 — Blast radius (access impact)"""
         self.console.print(
-            "\n  [bold]Q4.[/bold] If "
+            "\n  [bold]Q3.[/bold] If "
             f"{self.vendor_name}'s access "
             f"was compromised, what is the "
             f"worst-case impact?\n"
@@ -480,10 +460,10 @@ class IntakeWizard:
         choice = self._single_select(Q4_ACCESS)
         self.answers["access_level"] = choice
 
-    def _q5_sole_source(self):
-        """Q5 — Replaceability"""
+    def _q4_sole_source(self):
+        """Q4 — Replaceability"""
         self.console.print(
-            f"\n  [bold]Q5.[/bold] How easily "
+            f"\n  [bold]Q4.[/bold] How easily "
             f"could you replace "
             f"{self.vendor_name} if needed?\n"
             "  [dim]This affects your negotiating "
@@ -500,14 +480,14 @@ class IntakeWizard:
         choice = self._single_select(Q5_REPLACEABILITY)
         self.answers["sole_source"] = choice
 
-    def _q6_integrations(self):
-        """Q6 — System integrations"""
+    def _q5_integrations(self):
+        """Q5 — System integrations"""
         all_tools = self.config.get_all_stack_tools()
 
         if not all_tools:
             # Tech stack not configured — free text
             self.console.print(
-                "\n  [bold]Q6.[/bold] Which of your "
+                "\n  [bold]Q5.[/bold] Which of your "
                 "systems will "
                 f"{self.vendor_name} integrate with?\n"
                 "  [dim]Tip: Run bandit setup --stack "
@@ -535,7 +515,7 @@ class IntakeWizard:
 
         # Tech stack configured — show real tools
         self.console.print(
-            "\n  [bold]Q6.[/bold] Which of your "
+            "\n  [bold]Q5.[/bold] Which of your "
             "systems will "
             f"{self.vendor_name} have access to?\n"
             "  [dim](Select all that apply — "
@@ -630,13 +610,13 @@ class IntakeWizard:
                     "separated by commas[/red]"
                 )
 
-    def _q7_sso(self):
-        """Q7 — SSO required"""
+    def _q6_sso(self):
+        """Q6 — SSO required"""
         idp = self.config.get_idp_name()
         through = f" through {idp}" if idp else ""
 
         self.console.print(
-            f"\n  [bold]Q7.[/bold] Does "
+            f"\n  [bold]Q6.[/bold] Does "
             f"{self.vendor_name} require SSO setup"
             f"{through}?\n"
             "  1.  Yes\n"
@@ -657,10 +637,10 @@ class IntakeWizard:
                 "  [red]Enter 1, 2, or 3[/red]"
             )
 
-    def _q8_ai(self):
-        """Q8 — AI in service"""
+    def _q7_ai(self):
+        """Q7 — AI in service"""
         self.console.print(
-            f"\n  [bold]Q8.[/bold] Does "
+            f"\n  [bold]Q7.[/bold] Does "
             f"{self.vendor_name} use AI or ML "
             f"in their service?\n"
         )
@@ -670,14 +650,14 @@ class IntakeWizard:
         choice = self._single_select(Q8_AI)
         self.answers["ai_in_service"] = choice
 
-    def _q9_training(self):
-        """Q9 — AI training (only shown if AI = yes)"""
+    def _q8_training(self):
+        """Q8 — AI training (only shown if AI = yes)"""
         if self.answers.get("ai_in_service") == "no":
             self.answers["ai_trains_on_data"] = "na"
             return
 
         self.console.print(
-            f"\n  [bold]Q9.[/bold] Will your data be "
+            f"\n  [bold]Q8.[/bold] Will your data be "
             f"used to train {self.vendor_name}'s "
             f"AI models?\n"
         )
@@ -687,10 +667,10 @@ class IntakeWizard:
         choice = self._single_select(Q9_TRAINING)
         self.answers["ai_trains_on_data"] = choice
 
-    def _q10_criticality(self):
-        """Q10 — Business criticality"""
+    def _q9_criticality(self):
+        """Q9 — Business criticality"""
         self.console.print(
-            f"\n  [bold]Q10.[/bold] How critical is "
+            f"\n  [bold]Q9.[/bold] How critical is "
             f"{self.vendor_name} to your operations?\n"
         )
         for i, (_, label) in enumerate(Q10_CRITICALITY):
@@ -699,10 +679,10 @@ class IntakeWizard:
         choice = self._single_select(Q10_CRITICALITY)
         self.answers["criticality"] = choice
 
-    def _q11_spend(self):
-        """Q11 — Annual spend"""
+    def _q10_spend(self):
+        """Q10 — Annual spend"""
         self.console.print(
-            f"\n  [bold]Q11.[/bold] Estimated annual "
+            f"\n  [bold]Q10.[/bold] Estimated annual "
             f"spend with {self.vendor_name}?\n"
         )
         for i, (_, label) in enumerate(Q11_SPEND):
@@ -711,10 +691,10 @@ class IntakeWizard:
         choice = self._single_select(Q11_SPEND)
         self.answers["annual_spend"] = choice
 
-    def _q12_renewal(self):
-        """Q12 — Renewal date"""
+    def _q11_renewal(self):
+        """Q11 — Renewal date"""
         self.console.print(
-            f"\n  [bold]Q12.[/bold] Contract renewal "
+            f"\n  [bold]Q11.[/bold] Contract renewal "
             f"date for {self.vendor_name}?\n"
             "  [dim]Format: MM/YYYY "
             "(or press Enter to skip)[/dim]"
@@ -962,9 +942,6 @@ class IntakeWizard:
 
         rows = [
             ("Data types", data_type_labels),
-            ("Volume", label(
-                Q2_VOLUME, a.get("data_volume")
-            )),
             ("Environment", label(
                 Q3_ENVIRONMENT,
                 a.get("environment_access")

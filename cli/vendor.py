@@ -179,7 +179,6 @@ def vendor_add(vendor_name):
         "%Y-%m-%d"
     )
     profile.data_types = answers.get("data_types", [])
-    profile.data_volume = answers.get("data_volume")
     profile.environment_access = answers.get(
         "environment_access"
     )
@@ -291,7 +290,6 @@ def vendor_show(vendor_name):
             ("Data types", ", ".join(
                 profile.data_types or []
             ) or "—"),
-            ("Volume", profile.data_volume or "—"),
             ("Environment", profile.environment_access or "—"),
             ("Access", profile.access_level or "—"),
             ("Sole source", (
@@ -367,7 +365,6 @@ def vendor_edit(vendor_name):
     wizard = IntakeWizard(vendor_name)
     wizard.answers = {
         "data_types": profile.data_types or [],
-        "data_volume": profile.data_volume,
         "environment_access": profile.environment_access,
         "access_level": profile.access_level,
         "sole_source": profile.sole_source,
@@ -387,9 +384,6 @@ def vendor_edit(vendor_name):
     # Update profile fields
     profile.data_types = answers.get(
         "data_types", profile.data_types
-    )
-    profile.data_volume = answers.get(
-        "data_volume", profile.data_volume
     )
     profile.environment_access = answers.get(
         "environment_access", profile.environment_access

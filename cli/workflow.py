@@ -159,7 +159,6 @@ def workflow(drive, assess, vendor):
         if profile.intake_completed:
             wizard.answers = {
                 "data_types": profile.data_types or [],
-                "data_volume": profile.data_volume,
                 "environment_access": profile.environment_access,
                 "access_level": profile.access_level,
                 "sole_source": profile.sole_source,
@@ -195,7 +194,6 @@ def workflow(drive, assess, vendor):
             "%Y-%m-%d"
         )
         profile.data_types = answers.get("data_types", [])
-        profile.data_volume = answers.get("data_volume")
         profile.environment_access = answers.get(
             "environment_access"
         )

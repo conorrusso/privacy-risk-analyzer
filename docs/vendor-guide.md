@@ -49,7 +49,7 @@ bandit workflow --vendor "VendorName" --drive
 The workflow:
 1. Shows all vendors missing intake data
 2. Asks if you want to proceed
-3. Walks through 12 questions per vendor
+3. Walks through 11 questions per vendor
 4. Lets you skip any vendor
 5. Offers to assess all completed vendors at once
 6. Shows risk tiers and saves reports to Drive
@@ -68,22 +68,21 @@ bandit vendor add "HubSpot"
 
 If Google Drive is configured, Bandit checks for an existing vendor folder before the wizard starts. You can link to an existing folder, create a new one, or skip Drive entirely.
 
-### The 12 questions
+### The 11 questions
 
 | # | Question | Why it matters |
 |---|----------|----------------|
 | Q1 | Data exposure | What data the vendor comes into contact with — adjusts D1, D3, D5, D7, D8 weights |
-| Q2 | Volume of records | Calibrates breach impact scoring |
-| Q3 | Environment access | Whether vendor touches production, staging, or nothing |
-| Q4 | Blast radius | Worst-case impact if vendor access is compromised — shapes D2, D5, D7, D8 weights |
-| Q5 | Replaceability | How easily the vendor can be replaced — affects negotiating leverage and escalation |
-| Q6 | Internal integrations | Which of your tools the vendor connects to (uses your tech stack) |
-| Q7 | SSO required? | Whether vendor is enrolled in your IdP |
-| Q8 | AI in the service? | Vendor uses AI in service delivery |
-| Q9 | AI trains on your data? | Whether your data improves vendor models |
-| Q10 | Criticality | Business criticality rating |
-| Q11 | Annual spend | Contract value |
-| Q12 | Renewal date | Next contract date |
+| Q2 | Environment access | Whether vendor touches production, staging, or nothing |
+| Q3 | Blast radius | Worst-case impact if vendor access is compromised — shapes D2, D5, D7, D8 weights |
+| Q4 | Replaceability | How easily the vendor can be replaced — affects negotiating leverage and escalation |
+| Q5 | Internal integrations | Which of your tools the vendor connects to (uses your tech stack) |
+| Q6 | SSO required? | Whether vendor is enrolled in your IdP |
+| Q7 | AI in the service? | Vendor uses AI in service delivery |
+| Q8 | AI trains on your data? | Whether your data improves vendor models |
+| Q9 | Criticality | Business criticality rating |
+| Q10 | Annual spend | Contract value |
+| Q11 | Renewal date | Next contract date |
 
 ### Q1 — Data exposure
 
@@ -102,7 +101,7 @@ Categories:
 
 Why this matters: Q1 directly shapes the dimension weights for this vendor's assessment. PHI and PCI increase D5 and D7 weights significantly. Customer data increases D1 and D3 weights. Selecting "none" reduces GDPR-specific weights for infrastructure tools that don't touch personal data.
 
-### Q4 — Blast radius
+### Q3 — Blast radius
 
 If this vendor's access was compromised, what is the worst-case impact?
 
@@ -127,7 +126,7 @@ identity vendor has cascading effects that require contractual protections beyon
 Tip: if a vendor has multiple access levels (e.g. read-only to data but agent running on servers),
 pick the highest risk scenario.
 
-### Q5 — Replaceability
+### Q4 — Replaceability
 
 How easily could you replace this vendor if needed?
 
@@ -315,7 +314,7 @@ bandit setup --drive
 
 ## Tech stack integration
 
-Q6 of the intake wizard asks which of your internal tools the vendor integrates with. The options shown are pulled from your tech stack config.
+Q5 of the intake wizard asks which of your internal tools the vendor integrates with. The options shown are pulled from your tech stack config.
 
 To set up your tech stack:
 ```bash
