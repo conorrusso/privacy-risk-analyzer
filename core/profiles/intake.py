@@ -111,11 +111,57 @@ Q3_ENVIRONMENT = [
 ]
 
 Q4_ACCESS = [
-    ("none",        "No access"),
-    ("read_only",   "Read-only"),
-    ("read_write",  "Read / Write"),
-    ("admin",       "Admin / Privileged"),
+    (
+        "minimal",
+        "Minimal impact",
+        "View-only or limited scope — read access to "
+        "non-sensitive data, sandboxes, or logs only"
+    ),
+    (
+        "data_exposure",
+        "Data exposure risk",
+        "Could read or export sensitive, personal, "
+        "or confidential data from production systems"
+    ),
+    (
+        "data_change",
+        "Data or config change risk",
+        "Could modify, delete, or corrupt data — "
+        "or change application/service configuration"
+    ),
+    (
+        "systemic",
+        "Infrastructure or identity risk",
+        "Network position (CDN/proxy/firewall), "
+        "identity provider (SSO/directory), "
+        "secrets manager, or infrastructure admin — "
+        "compromise affects systems beyond this vendor"
+    ),
 ]
+
+# ── Legacy access level migration ─────────────────────
+LEGACY_ACCESS_LEVEL_MAP = {
+    "none":          "minimal",
+    "read_only":     "data_exposure",
+    "read_write":    "data_change",
+    "admin":         "systemic",
+    # New slugs pass through unchanged
+    "minimal":       "minimal",
+    "data_exposure": "data_exposure",
+    "data_change":   "data_change",
+    "systemic":      "systemic",
+}
+
+
+def normalise_access_level(
+    access_level: str | None
+) -> str | None:
+    """Migrate old access_level slugs to new ones."""
+    if not access_level:
+        return None
+    return LEGACY_ACCESS_LEVEL_MAP.get(
+        access_level, access_level
+    )
 
 Q8_AI = [
     ("yes",     "Yes"),
@@ -370,13 +416,22 @@ class IntakeWizard:
         self.answers["environment_access"] = choice
 
     def _q4_access(self):
-        """Q4 — Access level"""
+        """Q4 — Blast radius (access impact)"""
         self.console.print(
-            "\n  [bold]Q4.[/bold] What level of "
-            f"access will {self.vendor_name} need?\n"
+            "\n  [bold]Q4.[/bold] If "
+            f"{self.vendor_name}'s access "
+            f"was compromised, what is the "
+            f"worst-case impact?\n"
+            "  [dim](Pick the highest risk "
+            "scenario that applies)[/dim]\n"
         )
-        for i, (_, label) in enumerate(Q4_ACCESS):
-            self.console.print(f"  {i+1}.  {label}")
+        for i, (slug, label, desc) in enumerate(
+            Q4_ACCESS
+        ):
+            self.console.print(
+                f"  {i+1}.  [bold]{label}[/bold]\n"
+                f"       [dim]{desc}[/dim]"
+            )
 
         choice = self._single_select(Q4_ACCESS)
         self.answers["access_level"] = choice
@@ -773,7 +828,48 @@ class IntakeWizard:
                     f"{system}: {formatted}"
                 )
 
-        if self.answers.get("sso_required"):
+        access = normalise_access_level(
+            self.answers.get("access_level")
+        )
+
+        if access == "systemic":
+            systemic_actions = [
+                "Security team review required before "
+                "access is granted",
+                "Network segmentation review — confirm "
+                "blast radius is understood and accepted",
+                "Access governance review — confirm "
+                "standing vs just-in-time access model",
+                "Incident response plan updated to include "
+                "this vendor as high-blast-radius system",
+            ]
+            for action in systemic_actions:
+                if action not in actions:
+                    actions.append(action)
+
+        elif access == "data_change":
+            actions.append(
+                "Confirm write access is scoped to "
+                "minimum necessary objects and fields"
+            )
+            actions.append(
+                "Verify change audit logging is enabled "
+                "and alerts configured for bulk operations"
+            )
+
+        elif access == "data_exposure":
+            actions.append(
+                "Confirm read access is scoped to "
+                "minimum necessary data"
+            )
+            actions.append(
+                "Verify data export/download controls "
+                "are in place if applicable"
+            )
+
+        # Keep existing SSO action for all non-minimal
+        if (self.answers.get("sso_required")
+                and access != "minimal"):
             sso_action = (
                 f"SSO setup required through {idp}"
             )
@@ -821,8 +917,13 @@ class IntakeWizard:
                 Q3_ENVIRONMENT,
                 a.get("environment_access")
             )),
-            ("Access", label(
-                Q4_ACCESS, a.get("access_level")
+            ("Blast radius", {
+                slug: lbl
+                for slug, lbl, _ in Q4_ACCESS
+            }.get(
+                normalise_access_level(
+                    a.get("access_level", "")
+                ) or "", "—"
             )),
             ("Sole source", (
                 "Yes" if a.get("sole_source")
@@ -941,10 +1042,55 @@ def apply_intake_weight_modifiers(
                     3.0, weights.get(dim, 1.0) + delta
                 )
 
-    # Admin access modifier
-    if profile.access_level == "admin":
+    # Access level (blast radius) modifiers
+    access = getattr(profile, "access_level", None)
+    access = normalise_access_level(access)
+
+    if access == "minimal":
+        # Read-only / sandbox — slight reduction
+        # in breach notification urgency
+        weights["D5"] = max(
+            0.5, weights.get("D5", 1.0) - 0.1
+        )
+
+    elif access == "data_exposure":
+        # Can read sensitive data — data minimization
+        # and subject rights matter more
+        weights["D1"] = min(
+            3.0, weights.get("D1", 1.0) + 0.3
+        )
+        weights["D3"] = min(
+            3.0, weights.get("D3", 1.0) + 0.2
+        )
+
+    elif access == "data_change":
+        # Can modify/delete — sub-processor chain
+        # and breach notification matter more
         weights["D2"] = min(
-            3.0, weights.get("D2", 1.0) + 0.5
+            3.0, weights.get("D2", 1.0) + 0.4
+        )
+        weights["D5"] = min(
+            3.0, weights.get("D5", 1.0) + 0.4
+        )
+        weights["D7"] = min(
+            3.0, weights.get("D7", 1.0) + 0.3
+        )
+
+    elif access == "systemic":
+        # Network position / identity / infra —
+        # everything matters, especially breach
+        # notification and DPA completeness
+        weights["D2"] = min(
+            3.0, weights.get("D2", 1.0) + 0.6
+        )
+        weights["D5"] = min(
+            3.0, weights.get("D5", 1.0) + 0.8
+        )
+        weights["D7"] = min(
+            3.0, weights.get("D7", 1.0) + 0.3
+        )
+        weights["D8"] = min(
+            3.0, weights.get("D8", 1.0) + 0.4
         )
 
     # Cap all at 3.0
@@ -1021,6 +1167,35 @@ def build_integration_context_paragraph(
         lines.append(
             f"This vendor comes into contact with: "
             f"{', '.join(readable_types)}."
+        )
+
+    # Access level context
+    access = getattr(profile, "access_level", None)
+    access = normalise_access_level(access)
+    ACCESS_LABELS = {
+        slug: label
+        for slug, label, _ in Q4_ACCESS
+    }
+    if access and access != "minimal":
+        lines.append(
+            f"Access risk level: "
+            f"{ACCESS_LABELS.get(access, access)}. "
+            + {
+                "data_exposure": (
+                    "Attacker could read or export "
+                    "sensitive data."
+                ),
+                "data_change": (
+                    "Attacker could modify or delete "
+                    "data and configuration."
+                ),
+                "systemic": (
+                    "Compromise could affect systems "
+                    "beyond this vendor — evaluate "
+                    "breach notification and DPA "
+                    "completeness carefully."
+                ),
+            }.get(access, "")
         )
 
     # Integration context

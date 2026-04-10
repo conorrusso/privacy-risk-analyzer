@@ -75,7 +75,7 @@ If Google Drive is configured, Bandit checks for an existing vendor folder befor
 | Q1 | Data exposure | What data the vendor comes into contact with — adjusts D1, D3, D5, D7, D8 weights |
 | Q2 | Volume of records | Calibrates breach impact scoring |
 | Q3 | Environment access | Whether vendor touches production, staging, or nothing |
-| Q4 | Access level | Read-only vs admin triggers D2 weight increase |
+| Q4 | Blast radius | Worst-case impact if vendor access is compromised — shapes D2, D5, D7, D8 weights |
 | Q5 | Sole source? | Flags vendor as critical / difficult to replace |
 | Q6 | Internal integrations | Which of your tools the vendor connects to (uses your tech stack) |
 | Q7 | SSO required? | Whether vendor is enrolled in your IdP |
@@ -101,6 +101,31 @@ Categories:
 - **No personal or confidential data** — infrastructure / tooling only
 
 Why this matters: Q1 directly shapes the dimension weights for this vendor's assessment. PHI and PCI increase D5 and D7 weights significantly. Customer data increases D1 and D3 weights. Selecting "none" reduces GDPR-specific weights for infrastructure tools that don't touch personal data.
+
+### Q4 — Blast radius
+
+If this vendor's access was compromised, what is the worst-case impact?
+
+Options (pick the highest risk that applies):
+
+- **Minimal** — view-only or sandbox access, limited scope. Low blast radius.
+
+- **Data exposure** — could read or export sensitive, personal, or confidential production data.
+  (Example: read-only Snowflake connection to customer analytics data)
+
+- **Data or config change** — could modify, delete, or corrupt data or application configuration.
+  (Example: CRM write access, Jira admin)
+
+- **Infrastructure or identity risk** — network position, identity provider, secrets manager,
+  or infrastructure admin. Compromise affects systems beyond this vendor.
+  (Example: Cloudflare, Okta, AWS, Vault)
+
+Why this matters: Q4 directly shapes breach notification (D5) and sub-processor (D2) weights.
+"Systemic" access adds significant weight to D5, D2, and D8 because a breach at a network or
+identity vendor has cascading effects that require contractual protections beyond a standard SaaS DPA.
+
+Tip: if a vendor has multiple access levels (e.g. read-only to data but agent running on servers),
+pick the highest risk scenario.
 
 ### After the wizard
 
@@ -165,7 +190,10 @@ When you run `bandit assess` for a vendor that has a completed intake profile, B
 | `phi` in Q1 | D1 +0.5, D5 +1.0, D7 +0.3, D8 +0.5 |
 | `pci` in Q1 | D1 +0.3, D7 +0.5, D8 +0.3 |
 | `none` in Q1 | D1 −0.2, D3 −0.3 |
-| Admin access level | D2 +0.5 |
+| `data_exposure` access (Q4) | D1 +0.3, D3 +0.2 |
+| `data_change` access (Q4) | D2 +0.4, D5 +0.4, D7 +0.3 |
+| `systemic` access (Q4) | D2 +0.6, D5 +0.8, D7 +0.3, D8 +0.4 |
+| `minimal` access (Q4) | D5 −0.1 |
 | Customer data integration | D1 +0.3, D3 +0.3 |
 | Healthcare integration | D1 +0.5, D5 +1.0, D8 +0.5 |
 

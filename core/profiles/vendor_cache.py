@@ -138,6 +138,10 @@ class VendorProfileCache:
                 profile.data_types = normalise_data_types(
                     profile.data_types
                 )
+            from core.profiles.intake import normalise_access_level
+            profile.access_level = normalise_access_level(
+                profile.access_level
+            )
             return profile
         except (TypeError, KeyError):
             return None
@@ -162,6 +166,10 @@ class VendorProfileCache:
                         profile.data_types = normalise_data_types(
                             profile.data_types
                         )
+                    from core.profiles.intake import normalise_access_level
+                    profile.access_level = normalise_access_level(
+                        profile.access_level
+                    )
                     profiles.append(profile)
                 except (TypeError, KeyError):
                     pass
