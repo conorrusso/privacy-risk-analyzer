@@ -163,6 +163,50 @@ def normalise_access_level(
         access_level, access_level
     )
 
+Q5_REPLACEABILITY = [
+    (
+        "easily_replaceable",
+        "Easily replaceable",
+        "Clear alternatives exist — low switching cost"
+    ),
+    (
+        "difficult",
+        "Difficult to replace",
+        "Alternatives exist but switching cost is "
+        "high — significant migration effort required"
+    ),
+    (
+        "not_replaceable",
+        "Not replaceable",
+        "No viable alternative — business-critical "
+        "dependency, no realistic switching option"
+    ),
+]
+
+# ── Legacy sole_source migration ──────────────────────
+LEGACY_SOLE_SOURCE_MAP = {
+    True:    "not_replaceable",
+    False:   "easily_replaceable",
+    "true":  "not_replaceable",
+    "false": "easily_replaceable",
+    # New slugs pass through
+    "easily_replaceable": "easily_replaceable",
+    "difficult":          "difficult",
+    "not_replaceable":    "not_replaceable",
+}
+
+
+def normalise_sole_source(
+    value,
+) -> str | None:
+    """Migrate old boolean to new replaceability slug."""
+    if value is None:
+        return None
+    return LEGACY_SOLE_SOURCE_MAP.get(
+        value, str(value)
+    )
+
+
 Q8_AI = [
     ("yes",     "Yes"),
     ("no",      "No"),
@@ -437,16 +481,24 @@ class IntakeWizard:
         self.answers["access_level"] = choice
 
     def _q5_sole_source(self):
-        """Q5 — Sole source"""
+        """Q5 — Replaceability"""
         self.console.print(
-            f"\n  [bold]Q5.[/bold] Is "
-            f"{self.vendor_name} a sole-source vendor?"
+            f"\n  [bold]Q5.[/bold] How easily "
+            f"could you replace "
+            f"{self.vendor_name} if needed?\n"
+            "  [dim]This affects your negotiating "
+            "leverage on contract terms.[/dim]\n"
         )
-        result = Confirm.ask(
-            "  No alternatives exist",
-            default=False
-        )
-        self.answers["sole_source"] = result
+        for i, (slug, label, desc) in enumerate(
+            Q5_REPLACEABILITY
+        ):
+            self.console.print(
+                f"  {i+1}.  [bold]{label}[/bold]\n"
+                f"       [dim]{desc}[/dim]"
+            )
+
+        choice = self._single_select(Q5_REPLACEABILITY)
+        self.answers["sole_source"] = choice
 
     def _q6_integrations(self):
         """Q6 — System integrations"""
@@ -925,9 +977,13 @@ class IntakeWizard:
                     a.get("access_level", "")
                 ) or "", "—"
             )),
-            ("Sole source", (
-                "Yes" if a.get("sole_source")
-                else "No"
+            ("Replaceability", {
+                slug: lbl
+                for slug, lbl, _ in Q5_REPLACEABILITY
+            }.get(
+                normalise_sole_source(
+                    a.get("sole_source")
+                ) or "", "—"
             )),
             ("Integrations", integration_names),
             ("AI in service", label(

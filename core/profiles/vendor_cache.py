@@ -142,6 +142,11 @@ class VendorProfileCache:
             profile.access_level = normalise_access_level(
                 profile.access_level
             )
+            from core.profiles.intake import normalise_sole_source
+            if hasattr(profile, "sole_source"):
+                profile.sole_source = normalise_sole_source(
+                    profile.sole_source
+                )
             return profile
         except (TypeError, KeyError):
             return None
@@ -170,6 +175,11 @@ class VendorProfileCache:
                     profile.access_level = normalise_access_level(
                         profile.access_level
                     )
+                    from core.profiles.intake import normalise_sole_source
+                    if hasattr(profile, "sole_source"):
+                        profile.sole_source = normalise_sole_source(
+                            profile.sole_source
+                        )
                     profiles.append(profile)
                 except (TypeError, KeyError):
                     pass

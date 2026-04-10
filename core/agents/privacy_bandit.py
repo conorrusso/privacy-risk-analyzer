@@ -444,6 +444,7 @@ class PrivacyBandit(BaseBandit):
         auto_escalate_triggers = bandit_cfg.get_auto_escalate_triggers()
 
         # Apply intake weight modifiers if vendor profile has intake data
+        _vp = None
         try:
             from core.profiles.vendor_cache import profile_cache as _pc
             _vp = _pc.get(vendor)
@@ -485,6 +486,23 @@ class PrivacyBandit(BaseBandit):
 
         result.documents_assessed = documents_assessed
         result.signal_sources = signal_sources
+
+        # Attach replaceability from vendor profile
+        try:
+            from core.profiles.intake import normalise_sole_source
+            _sole = getattr(_vp, "sole_source", None) if _vp else None
+            result.sole_source = normalise_sole_source(_sole)
+            # Escalate if HIGH risk and not replaceable
+            if (result.risk_tier == "HIGH"
+                    and result.sole_source == "not_replaceable"):
+                result.escalation_required = True
+                result.escalation_reasons.append(
+                    "Vendor is HIGH risk with no viable "
+                    "alternative — limited ability to "
+                    "enforce contract improvements or switch"
+                )
+        except Exception:
+            result.sole_source = None
 
         # ── Phase 4: Legal Bandit (contract gap analysis) ─────────────
         legal_result = None

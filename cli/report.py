@@ -631,6 +631,27 @@ def _team_summary(result, assessment, legal_brief_path: str | None = None) -> st
         f'<span class="tp-v">{triggers_html}</span></div>'
         if triggers_html else ""
     )
+
+    # Replaceability note
+    from core.profiles.intake import normalise_sole_source
+    _sole = normalise_sole_source(
+        getattr(result, "sole_source", None)
+    )
+    if _sole == "not_replaceable":
+        replaceability_note = row(
+            "Replaceability",
+            "⚠ No viable alternative — limited negotiating leverage. "
+            "Consider this when prioritising DPA improvement requests.",
+            "#C0392B",
+        )
+    elif _sole == "difficult":
+        replaceability_note = row(
+            "Replaceability",
+            "Note: High switching cost — factor into risk acceptance decisions.",
+        )
+    else:
+        replaceability_note = ""
+
     grc = f"""<div class="tp">
   <div class="tp-hdr" style="background:#4A2E1A">FOR GRC</div>
   <div class="tp-body">
@@ -638,6 +659,7 @@ def _team_summary(result, assessment, legal_brief_path: str | None = None) -> st
     {row("Detail", _h(detail))}
     {esc_row}
     {row("Risk tier", f'{result.risk_tier}  {result.weighted_average}/5.0', a_color)}
+    {replaceability_note}
     {row("Assessment depth", _h(depth_label))}
     {row("High-risk dims (≤2)", _h(", ".join(high_dims)) if high_dims else "None")}
     {row("Deficient dims (3)", _h(", ".join(def_dims)) if def_dims else "None")}

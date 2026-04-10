@@ -76,7 +76,7 @@ If Google Drive is configured, Bandit checks for an existing vendor folder befor
 | Q2 | Volume of records | Calibrates breach impact scoring |
 | Q3 | Environment access | Whether vendor touches production, staging, or nothing |
 | Q4 | Blast radius | Worst-case impact if vendor access is compromised — shapes D2, D5, D7, D8 weights |
-| Q5 | Sole source? | Flags vendor as critical / difficult to replace |
+| Q5 | Replaceability | How easily the vendor can be replaced — affects negotiating leverage and escalation |
 | Q6 | Internal integrations | Which of your tools the vendor connects to (uses your tech stack) |
 | Q7 | SSO required? | Whether vendor is enrolled in your IdP |
 | Q8 | AI in the service? | Vendor uses AI in service delivery |
@@ -126,6 +126,23 @@ identity vendor has cascading effects that require contractual protections beyon
 
 Tip: if a vendor has multiple access levels (e.g. read-only to data but agent running on servers),
 pick the highest risk scenario.
+
+### Q5 — Replaceability
+
+How easily could you replace this vendor if needed?
+
+- **Easily replaceable** — alternatives exist, low switching cost
+- **Difficult to replace** — alternatives exist but migration effort is significant
+- **Not replaceable** — no viable alternative, business-critical dependency
+
+Why this matters: replaceability determines your negotiating leverage. A vendor with a 2/5 D5
+score is a different risk conversation if you can walk away vs if they're the only option.
+
+When a vendor is HIGH risk AND not replaceable, Bandit flags this in the GRC report — it means
+contract gaps are harder to close and risk acceptance requires explicit sign-off.
+
+This doesn't affect scoring directly but affects the escalation and risk acceptance recommendations
+in the GRC report. Not-replaceable vendors also show a `(locked in)` indicator in the dashboard.
 
 ### After the wizard
 

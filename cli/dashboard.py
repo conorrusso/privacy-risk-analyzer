@@ -108,8 +108,14 @@ def dashboard_show(risk, due, as_json):
         source_icon = "☁" if v.data_source == "drive" else "⊙"
         intake = "[green]✓[/green]" if v.intake_completed else "[dim]—[/dim]"
 
+        name_display = v.vendor_name
+        if v.replaceability == "not_replaceable":
+            name_display = (
+                f"{v.vendor_name} [dim](locked in)[/dim]"
+            )
+
         table.add_row(
-            v.vendor_name,
+            name_display,
             f"[{color}]{tier}[/{color}]",
             score,
             v.last_assessed or "Never",

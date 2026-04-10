@@ -23,6 +23,7 @@ class VendorSummary:
     drive_folder_id: Optional[str]
     data_source: str               # "local" | "drive" | "both"
     assessment_count: int
+    replaceability: Optional[str] = None
 
 
 @dataclass
@@ -153,6 +154,11 @@ def get_summary(
         findings = getattr(profile, "open_findings", 0) or 0
         open_findings_total += findings
 
+        from core.profiles.intake import normalise_sole_source
+        replaceability = normalise_sole_source(
+            getattr(profile, "sole_source", None)
+        )
+
         summary = VendorSummary(
             vendor_name=profile.vendor_name,
             risk_tier=tier,
@@ -166,6 +172,7 @@ def get_summary(
             drive_folder_id=profile.drive_folder_id,
             data_source=data_source,
             assessment_count=len(history),
+            replaceability=replaceability,
         )
         vendor_summaries.append(summary)
 
