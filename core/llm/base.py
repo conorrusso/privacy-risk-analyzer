@@ -17,6 +17,7 @@ messages: list of {"role": "user"|"assistant", "content": str | list}
 from __future__ import annotations
 
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -80,7 +81,8 @@ class BaseLLMProvider(ABC):
         """Complete with a single user prompt and return parsed JSON.
 
         Strips markdown code fences (```json ... ```) that models sometimes
-        add even when instructed not to.
+        add even when instructed not to. Uses robust parsing with truncation
+        recovery for large responses.
         """
         resp = self.complete(
             messages=[{"role": "user", "content": prompt}],
@@ -88,6 +90,79 @@ class BaseLLMProvider(ABC):
             max_tokens=max_tokens,
         )
         text = resp.text.strip()
-        text = re.sub(r"^```(?:json)?\s*\n?", "", text)
-        text = re.sub(r"\n?```\s*$", "", text)
+        return _parse_llm_json(text)
+
+
+def _parse_llm_json(text: str, context: str = "") -> dict:
+    """
+    Robustly parse JSON from LLM response.
+    Handles truncation, trailing commas, code fences.
+    """
+    logger = logging.getLogger("bandit")
+
+    # Step 1: strip code fences
+    text = text.replace("```json", "").replace("```", "").strip()
+
+    # Step 2: direct parse
+    try:
         return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Step 3: fix trailing commas
+    try:
+        cleaned = re.sub(r',\s*([}\]])', r'\1', text)
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Step 4: truncation recovery — if response was cut off mid-JSON,
+    # try to close open structures
+    try:
+        opens = text.count('{') - text.count('}')
+        opens_sq = text.count('[') - text.count(']')
+
+        truncated = text.rstrip().rstrip(',')
+
+        closing = (']' * max(0, opens_sq) +
+                   '}' * max(0, opens))
+        recovered = (
+            truncated + '"' + closing
+            if not truncated.endswith('"')
+            else truncated + closing
+        )
+
+        cleaned_recovered = re.sub(
+            r',\s*([}\]])', r'\1', recovered
+        )
+        result = json.loads(cleaned_recovered)
+        logger.warning(
+            f"LLM JSON was truncated"
+            + (f" ({context})" if context else "")
+            + " — recovered partial result. "
+            "Increase max_tokens if this recurs."
+        )
+        return result
+    except json.JSONDecodeError:
+        pass
+
+    # Step 5: extract outermost object
+    try:
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            cleaned = re.sub(
+                r',\s*([}\]])', r'\1', match.group(0)
+            )
+            return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # All attempts failed
+    logger.error(
+        f"Could not parse LLM JSON"
+        + (f" ({context})" if context else "")
+        + f". First 300 chars: {text[:300]}"
+    )
+    raise ValueError(
+        "LLM returned malformed JSON: check logs for details."
+    )

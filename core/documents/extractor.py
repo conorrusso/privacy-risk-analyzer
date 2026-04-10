@@ -9,8 +9,12 @@ Skipped silently: XLSX, CSV, ZIP, PNG, JPG, JPEG, GIF, MP4, MOV
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
+
+# pdfminer emits harmless FontBBox warnings for malformed fonts in some PDFs
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".doc",

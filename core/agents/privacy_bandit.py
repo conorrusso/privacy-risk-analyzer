@@ -461,12 +461,25 @@ class PrivacyBandit(BaseBandit):
             for dim_signals in per_dim.values():
                 flat_signals.update(dim_signals)
 
-            legal_result = legal_bandit.assess(
-                vendor_name=vendor,
-                documents=ready_docs,
-                policy_signals=flat_signals,
-                policy_scores=policy_scores,
-            )
+            try:
+                legal_result = legal_bandit.assess(
+                    vendor_name=vendor,
+                    documents=ready_docs,
+                    policy_signals=flat_signals,
+                    policy_scores=policy_scores,
+                )
+            except Exception as _lb_err:
+                import logging as _log
+                _log.getLogger("bandit").warning(
+                    f"Legal Bandit failed for {vendor}: {_lb_err}"
+                    " — main assessment still saved."
+                )
+                self._progress(
+                    f"⚠ Legal Bandit failed ({type(_lb_err).__name__})"
+                    " — GRC report saved. Re-run bandit legal"
+                    f' "{vendor}" --drive to retry the contract'
+                    " analysis separately."
+                )
 
         if legal_result:
             # Update dimension scores from contract assessment

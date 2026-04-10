@@ -229,17 +229,17 @@ class LegalBandit:
 
     def _extract_dpa(self, vendor_name: str, text: str) -> dict:
         prompt = get_dpa_legal_prompt(vendor_name, text)
-        raw = self.provider.complete_json(prompt)
+        raw = self.provider.complete_json(prompt, max_tokens=6000)
         return raw if isinstance(raw, dict) else {}
 
     def _extract_msa(self, vendor_name: str, text: str) -> dict:
         prompt = get_msa_legal_prompt(vendor_name, text)
-        raw = self.provider.complete_json(prompt)
+        raw = self.provider.complete_json(prompt, max_tokens=6000)
         return raw if isinstance(raw, dict) else {}
 
     def _extract_scc(self, vendor_name: str, text: str) -> dict:
         prompt = get_scc_legal_prompt(vendor_name, text)
-        raw = self.provider.complete_json(prompt)
+        raw = self.provider.complete_json(prompt, max_tokens=6000)
         return raw if isinstance(raw, dict) else {}
 
     def _parse_provisions(
