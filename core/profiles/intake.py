@@ -21,15 +21,80 @@ PROGRESS_FILE = (
 # ── Question definitions ──────────────────────────────
 
 Q1_DATA_TYPES = [
-    ("customer_pii",    "Customer PII"),
-    ("employee_pii",    "Employee PII"),
-    ("phi",             "PHI / health data"),
-    ("pci",             "PCI / payment card"),
-    ("financial",       "Financial records"),
-    ("source_code",     "Source code / IP"),
-    ("operational",     "Operational / internal only"),
-    ("none",            "No personal data"),
+    # ── Sensitivity tiers ────────────────────────
+    (
+        "public",
+        "Public data",
+        "Publicly available, no confidentiality restrictions"
+    ),
+    (
+        "internal",
+        "Internal / operational data",
+        "Internal systems, logs, configs — not sensitive"
+    ),
+    (
+        "confidential_business",
+        "Confidential business data",
+        "Financials, strategy, IP, source code, "
+        "internal communications"
+    ),
+    # ── Personal / people data ───────────────────
+    (
+        "customer_data",
+        "Customer or user data",
+        "Any data about your customers, users, "
+        "or prospects"
+    ),
+    (
+        "employee_data",
+        "Employee or HR data",
+        "Personnel records, payroll, performance, "
+        "HR systems"
+    ),
+    # ── Regulated data ───────────────────────────
+    (
+        "phi",
+        "Regulated — health data (PHI / HIPAA)",
+        "Any health, medical, or clinical information"
+    ),
+    (
+        "pci",
+        "Regulated — payment data (PCI)",
+        "Payment card numbers, CVV, cardholder data"
+    ),
+    # ── None ─────────────────────────────────────
+    (
+        "none",
+        "No personal or confidential data",
+        "Infrastructure / tooling only"
+    ),
 ]
+
+# ── Legacy slug migration ─────────────────────────────
+LEGACY_DATA_TYPE_MAP = {
+    "customer_pii":  "customer_data",
+    "employee_pii":  "employee_data",
+    "source_code":   "confidential_business",
+    "financial":     "confidential_business",
+    "operational":   "internal",
+    # phi, pci, none — unchanged
+}
+
+
+def normalise_data_types(
+    data_types: list[str]
+) -> list[str]:
+    """
+    Migrate old slugs to new slugs.
+    Called when loading an existing profile.
+    Idempotent — new slugs pass through unchanged.
+    """
+    result = []
+    for t in data_types:
+        mapped = LEGACY_DATA_TYPE_MAP.get(t, t)
+        if mapped not in result:
+            result.append(mapped)
+    return result
 
 Q2_VOLUME = [
     ("none",    "None"),
@@ -98,14 +163,62 @@ INTEGRATION_WEIGHT_MODIFIERS = {
 
 # ── Intake data type → sensitivity mapping ─────────────
 INTAKE_DATA_SENSITIVITY = {
-    "customer_pii": {"D1": 0.3, "D3": 0.3},
-    "employee_pii": {"D1": 0.3, "D3": 0.3},
-    "phi":          {"D1": 0.5, "D5": 1.0, "D8": 0.5},
-    "pci":          {"D7": 0.5, "D8": 0.3},
-    "financial":    {"D7": 0.3},
-    "source_code":  {"D1": 0.5},
-    "operational":  {},
-    "none":         {},
+    # Public data — no additional weight
+    "public": {},
+
+    # Internal operational — slight D1 attention
+    "internal": {
+        "D1": 0.1,
+    },
+
+    # Confidential business data — IP/source code
+    # focus on minimization and AI usage
+    "confidential_business": {
+        "D1": 0.4,
+        "D6": 0.3,
+        "D7": 0.2,
+    },
+
+    # Customer data — PII obligations apply
+    # GDPR controller/processor relationship core
+    "customer_data": {
+        "D1": 0.4,
+        "D3": 0.4,
+        "D5": 0.2,
+        "D7": 0.2,
+    },
+
+    # Employee/HR data — sensitive PII
+    # employment law obligations
+    "employee_data": {
+        "D1": 0.4,
+        "D3": 0.3,
+        "D5": 0.2,
+        "D7": 0.2,
+    },
+
+    # PHI — highest weight increases
+    # HIPAA + GDPR special category
+    "phi": {
+        "D1": 0.5,
+        "D5": 1.0,
+        "D7": 0.3,
+        "D8": 0.5,
+    },
+
+    # PCI — payment card obligations
+    "pci": {
+        "D1": 0.3,
+        "D7": 0.5,
+        "D8": 0.3,
+    },
+
+    # No personal data — reduce GDPR-specific
+    # dimension weights
+    "none": {
+        "D1": -0.2,
+        "D3": -0.3,
+    },
 }
 
 
@@ -190,13 +303,20 @@ class IntakeWizard:
     def _q1_data_types(self):
         """Q1 — Data types (multi-select)"""
         self.console.print(
-            "  [bold]Q1.[/bold] What data types will "
-            f"{self.vendor_name} process?\n"
-            "  [dim](Select all that apply — "
+            "\n  [bold]Q1.[/bold] What data will "
+            f"{self.vendor_name} come into contact with?\n"
+            "  [dim]Include data it stores, transmits, "
+            "or can access.\n"
+            "  (Select all that apply — "
             "enter numbers separated by commas)[/dim]\n"
         )
-        for i, (_, label) in enumerate(Q1_DATA_TYPES):
-            self.console.print(f"  {i+1:2}.  {label}")
+        for i, (slug, label, desc) in enumerate(
+            Q1_DATA_TYPES
+        ):
+            self.console.print(
+                f"  {i+1:2}.  [bold]{label}[/bold]\n"
+                f"       [dim]{desc}[/dim]"
+            )
 
         while True:
             raw = Prompt.ask("\n  Selection").strip()
@@ -529,40 +649,59 @@ class IntakeWizard:
         for integration in integrations:
             cat = integration.get("category", "")
 
-            if (cat == "customer_data"
-                    and "customer_pii" not in stated_types
+            # customer_data integration → should have
+            # customer_data in data types
+            if (cat in ("customer_data", "crm")
+                    and "customer_data" not in stated_types
                     and "none" not in stated_types):
                 mismatches.append((
                     integration["system_name"],
-                    "customer PII",
-                    "customer_pii"
+                    "customer or user data",
+                    "customer_data"
                 ))
 
+            # hr_people integration → should have
+            # employee_data in data types
             if (cat == "hr_people"
-                    and "employee_pii" not in stated_types
+                    and "employee_data" not in stated_types
                     and "none" not in stated_types):
                 mismatches.append((
                     integration["system_name"],
-                    "employee PII",
-                    "employee_pii"
+                    "employee or HR data",
+                    "employee_data"
                 ))
 
+            # healthcare_clinical → should have phi
             if (cat == "healthcare_clinical"
                     and "phi" not in stated_types
                     and "none" not in stated_types):
                 mismatches.append((
                     integration["system_name"],
-                    "PHI / health data",
+                    "regulated health data (PHI)",
                     "phi"
                 ))
 
+            # payments → should have pci
             if (cat == "payments"
                     and "pci" not in stated_types
                     and "none" not in stated_types):
                 mismatches.append((
                     integration["system_name"],
-                    "PCI / payment card data",
+                    "regulated payment data (PCI)",
                     "pci"
+                ))
+
+            # source_code integration → should have
+            # confidential_business
+            if (cat in ("source_code", "infrastructure")
+                    and "confidential_business"
+                    not in stated_types
+                    and "none" not in stated_types):
+                mismatches.append((
+                    integration["system_name"],
+                    "confidential business data "
+                    "(source code / infrastructure)",
+                    "confidential_business"
                 ))
 
         if not mismatches:
@@ -653,8 +792,12 @@ class IntakeWizard:
                     return v
             return key or "—"
 
+        DTYPE_LABELS = {
+            slug: lbl
+            for slug, lbl, _ in Q1_DATA_TYPES
+        }
         data_type_labels = ", ".join(
-            label(Q1_DATA_TYPES, t)
+            DTYPE_LABELS.get(t, t)
             for t in a.get("data_types", [])
         ) or "—"
 
@@ -837,37 +980,70 @@ def _org_covers(
         if pci_in_scope and dimension == "D7":
             return True
 
+    # New: customer_data covers D1/D3 for orgs
+    # that already weight PII heavily
+    if factor in ("customer_data",):
+        customer_in_scope = data_types.get(
+            "customer_pii_in_scope", False
+        )
+        if customer_in_scope and dimension in ("D1", "D3"):
+            return True
+
     return False
 
 
 def build_integration_context_paragraph(
-    profile  # VendorProfile
+    profile,  # VendorProfile
 ) -> str | None:
     """
-    Build the integration context paragraph
+    Build integration + data context paragraph
     injected into Privacy Bandit extraction prompt.
-    Returns None if no integrations.
     """
-    integrations = profile.integrations
-    if not integrations:
+    integrations = profile.integrations or []
+    data_types = profile.data_types or []
+
+    if not integrations and not data_types:
         return None
 
     lines = []
-    for i in integrations:
+
+    # Data types context — plain language
+    dtype_labels = {
+        slug: label
+        for slug, label, _ in Q1_DATA_TYPES
+    }
+
+    if data_types and "none" not in data_types:
+        readable_types = [
+            dtype_labels.get(t, t)
+            for t in data_types
+        ]
         lines.append(
-            f"- {i['system_name']} "
-            f"({i['category_label']}): "
-            f"vendor has access to your "
-            f"{i['data_description']}"
+            f"This vendor comes into contact with: "
+            f"{', '.join(readable_types)}."
         )
 
-    return (
-        "Additional context: This vendor has access "
-        "to data from these of your systems:\n"
-        + "\n".join(lines)
-        + "\n\nConsider their obligations for data "
-        "they ACCESS from these systems when "
-        "evaluating each dimension. Note these are "
-        "YOUR systems — not this vendor's "
-        "sub-processors."
+    # Integration context
+    if integrations:
+        lines.append(
+            "They integrate with or access data from "
+            "these of your systems:"
+        )
+        for i in integrations:
+            lines.append(
+                f"- {i['system_name']} "
+                f"({i['category_label']}): "
+                f"{i['data_description']}"
+            )
+
+    if not lines:
+        return None
+
+    lines.append(
+        "\nConsider their obligations for the above "
+        "data when evaluating each dimension. "
+        "Note: integrations listed are YOUR systems "
+        "— not this vendor's sub-processors."
     )
+
+    return "\n".join(lines)

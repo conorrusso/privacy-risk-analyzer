@@ -132,7 +132,13 @@ class VendorProfileCache:
         if not entry:
             return None
         try:
-            return VendorProfile(**entry)
+            profile = VendorProfile(**entry)
+            if profile.data_types:
+                from core.profiles.intake import normalise_data_types
+                profile.data_types = normalise_data_types(
+                    profile.data_types
+                )
+            return profile
         except (TypeError, KeyError):
             return None
 
@@ -145,12 +151,18 @@ class VendorProfileCache:
 
     def list_all(self) -> list[VendorProfile]:
         """Return all cached profiles."""
+        from core.profiles.intake import normalise_data_types
         cache = self._load()
         profiles: list[VendorProfile] = []
         for entry in cache.values():
             if isinstance(entry, dict) and not str(list(entry.keys())[0] if entry else "").startswith("_"):
                 try:
-                    profiles.append(VendorProfile(**entry))
+                    profile = VendorProfile(**entry)
+                    if profile.data_types:
+                        profile.data_types = normalise_data_types(
+                            profile.data_types
+                        )
+                    profiles.append(profile)
                 except (TypeError, KeyError):
                     pass
         return sorted(profiles, key=lambda p: p.vendor_name.lower())

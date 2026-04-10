@@ -72,7 +72,7 @@ If Google Drive is configured, Bandit checks for an existing vendor folder befor
 
 | # | Question | Why it matters |
 |---|----------|----------------|
-| Q1 | Data types processed | Adjusts D1, D2, D7 weights; flags if inconsistent with access level |
+| Q1 | Data exposure | What data the vendor comes into contact with — adjusts D1, D3, D5, D7, D8 weights |
 | Q2 | Volume of records | Calibrates breach impact scoring |
 | Q3 | Environment access | Whether vendor touches production, staging, or nothing |
 | Q4 | Access level | Read-only vs admin triggers D2 weight increase |
@@ -84,6 +84,23 @@ If Google Drive is configured, Bandit checks for an existing vendor folder befor
 | Q10 | Criticality | Business criticality rating |
 | Q11 | Annual spend | Contract value |
 | Q12 | Renewal date | Next contract date |
+
+### Q1 — Data exposure
+
+What data will this vendor come into contact with?
+This covers data they store, transmit, process, or can access.
+
+Categories:
+- **Public data** — no restrictions
+- **Internal / operational data** — internal use, not sensitive (logs, configs, infrastructure)
+- **Confidential business data** — financials, strategy, IP, source code
+- **Customer or user data** — any data about your customers or users
+- **Employee or HR data** — personnel, payroll, HR
+- **Regulated — health data (PHI / HIPAA)**
+- **Regulated — payment data (PCI)**
+- **No personal or confidential data** — infrastructure / tooling only
+
+Why this matters: Q1 directly shapes the dimension weights for this vendor's assessment. PHI and PCI increase D5 and D7 weights significantly. Customer data increases D1 and D3 weights. Selecting "none" reduces GDPR-specific weights for infrastructure tools that don't touch personal data.
 
 ### After the wizard
 
@@ -142,12 +159,15 @@ When you run `bandit assess` for a vendor that has a completed intake profile, B
 
 | Intake signal | Effect |
 |---------------|--------|
-| `personal_data` or `sensitive_data` in data types | D1 +0.2 |
-| `financial_data` in data types | D2 +0.1 |
-| `health_data` in data types | D5 +0.3, D8 +0.2 |
-| Admin environment access | D2 +0.3 |
-| AI trains on your data | D6 +0.3 |
-| Any integration present | D2 +0.15 |
+| `customer_data` in Q1 | D1 +0.4, D3 +0.4, D5 +0.2, D7 +0.2 |
+| `employee_data` in Q1 | D1 +0.4, D3 +0.3, D5 +0.2, D7 +0.2 |
+| `confidential_business` in Q1 | D1 +0.4, D6 +0.3, D7 +0.2 |
+| `phi` in Q1 | D1 +0.5, D5 +1.0, D7 +0.3, D8 +0.5 |
+| `pci` in Q1 | D1 +0.3, D7 +0.5, D8 +0.3 |
+| `none` in Q1 | D1 −0.2, D3 −0.3 |
+| Admin access level | D2 +0.5 |
+| Customer data integration | D1 +0.3, D3 +0.3 |
+| Healthcare integration | D1 +0.5, D5 +1.0, D8 +0.5 |
 
 Weight modifiers are additive. The org profile weight is applied first, and intake modifiers only apply where the org profile hasn't already maximised a weight (prevents double-counting).
 
