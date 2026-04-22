@@ -5,7 +5,7 @@
 | Command | What it does |
 |---------|-------------|
 | `bandit assess "Vendor"` | Assess a single vendor's privacy practices |
-| `bandit vendor add "Vendor"` | Run 12-question intake wizard for a new vendor |
+| `bandit vendor add "Vendor"` | Run 11-question intake wizard for a new vendor |
 | `bandit vendor show "Vendor"` | View vendor profile and assessment history |
 | `bandit vendor edit "Vendor"` | Update intake answers |
 | `bandit vendor list` | List all vendors with risk tier and next due date |
@@ -14,6 +14,7 @@
 | `bandit setup` | Run the setup wizard (~2 min, infers frameworks automatically) |
 | `bandit setup --stack` | Collect your internal tools by category |
 | `bandit setup --notify` | Configure IT notification contact |
+| `bandit setup --provider` | Configure AI provider (Claude, GPT-4o, Gemini, Ollama, Mistral) |
 | `bandit setup --show` | Print your current profile |
 | `bandit setup --reset` | Start the wizard over |
 | `bandit profile "Vendor"` | Show vendor function profile and doc requirements |
@@ -209,7 +210,7 @@ bandit vendor list [OPTIONS]
 
 | Subcommand | Description |
 |-----------|-------------|
-| `add <vendor>` | Run 12-question intake wizard. Checks Drive for existing folder first. Queues IT actions. |
+| `add <vendor>` | Run 11-question intake wizard. Checks Drive for existing folder first. Queues IT actions. |
 | `show <vendor>` | Display full profile and last 5 assessment history entries |
 | `edit <vendor>` | Re-run intake wizard with current values as defaults |
 | `list` | Table of all vendors with risk tier, score, dates, and intake status |
@@ -600,7 +601,7 @@ Sync runs automatically at the start and end of every `bandit assess --drive` ru
 
 ## bandit workflow
 
-Vendor onboarding workflow. Finds all vendors with incomplete intake, walks through the 12-question profile for each one, then offers to batch assess.
+Vendor onboarding workflow. Finds all vendors with incomplete intake, walks through the 11-question profile for each one, then offers to batch assess.
 
 Works for two scenarios:
 
@@ -676,3 +677,34 @@ bandit notify --all --json
 ```
 
 Requires `bandit setup --notify` to configure Slack webhook or email address.
+
+---
+
+## bandit setup --provider
+
+Configure which AI provider Bandit uses for assessments. Saves to `bandit.config.yml`.
+
+```bash
+bandit setup --provider
+```
+
+Supported providers:
+
+| Provider | Model examples | API key env var |
+|----------|---------------|----------------|
+| `anthropic` (default) | claude-haiku-4-5-20251001, claude-sonnet-4-6 | `ANTHROPIC_API_KEY` |
+| `openai` | gpt-4o, gpt-4o-mini | `OPENAI_API_KEY` |
+| `gemini` | gemini-2.0-flash, gemini-1.5-pro | `GEMINI_API_KEY` |
+| `ollama` | llama3, mistral, phi3 | None (local) |
+| `mistral` | mistral-large-latest, mistral-small-latest | `MISTRAL_API_KEY` |
+
+You can also edit `bandit.config.yml` directly:
+
+```yaml
+provider:
+  name: openai
+  model: gpt-4o
+  api_key: ""  # or set OPENAI_API_KEY env var
+```
+
+CLI flags `--provider`, `--model`, and `--api-key` on `bandit assess`, `bandit batch`, and `bandit legal` override the config file for that run.

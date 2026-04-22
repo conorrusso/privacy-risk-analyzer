@@ -95,21 +95,13 @@ def _run_single_assessment(
     import shutil
     import tempfile
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY not set. "
-            "Set the environment variable to run assessments."
-        )
-
-    from core.llm.anthropic import AnthropicProvider
+    from core.config import BanditConfig
+    from core.llm.factory import load_provider
     from core.agents.privacy_bandit import PrivacyBandit
     from cli.terminal import assessment_progress
 
-    provider = AnthropicProvider(
-        model="claude-haiku-4-5-20251001",
-        api_key=api_key,
-    )
+    cfg = BanditConfig().get_provider_config()
+    provider = load_provider(cfg)
 
     # Integration context from intake profile
     from core.profiles.vendor_cache import VendorProfileCache as _VPC_SA
@@ -246,12 +238,16 @@ def main(ctx: click.Context) -> None:
 @main.command()
 @click.argument("vendor", nargs=-1, required=True)
 @click.option(
-    "--model", default="claude-haiku-4-5-20251001", metavar="MODEL", show_default=True,
-    help="Claude model ID",
+    "--model", default=None, metavar="MODEL",
+    help="Model ID (overrides config)",
 )
 @click.option(
-    "--api-key", default=None, metavar="KEY", envvar="ANTHROPIC_API_KEY",
-    help="Anthropic API key (default: $ANTHROPIC_API_KEY)",
+    "--api-key", default=None, metavar="KEY",
+    help="API key (overrides config and env var)",
+)
+@click.option(
+    "--provider", "provider_name", default=None, metavar="NAME",
+    help="Provider name: anthropic, openai, gemini, ollama, mistral",
 )
 @click.option("--json", "output_json", is_flag=True, help="Print JSON to terminal (report still saved)")
 @click.option("-v", "--verbose", is_flag=True, help="Show discovery stages and extra detail")
@@ -268,8 +264,9 @@ def main(ctx: click.Context) -> None:
 @click.option("--no-legal-brief", is_flag=True, default=False, help="Skip generating the standalone legal brief")
 def assess(
     vendor: tuple,
-    model: str,
+    model: str | None,
     api_key: str | None,
+    provider_name: str | None,
     output_json: bool,
     verbose: bool,
     no_report: bool,
@@ -294,14 +291,24 @@ def assess(
     import datetime
     from cli.terminal import assessment_progress, console, print_assessment
     from core.agents.privacy_bandit import PrivacyBandit
-    from core.llm.anthropic import AnthropicProvider
+    from core.config import BanditConfig
+    from core.llm.factory import load_provider
     from core.scoring.rubric import result_to_dict
 
-    if not api_key:
-        console.print(
-            "[bold red]Error:[/] ANTHROPIC_API_KEY not set.\n"
-            "Set the environment variable or pass [color(220)]--api-key <key>[/]."
-        )
+    # Build provider config from config file + CLI overrides
+    _bcfg = BanditConfig()
+    cfg = _bcfg.get_provider_config()
+    if provider_name:
+        cfg["name"] = provider_name
+    if model:
+        cfg["model"] = model
+    if api_key:
+        cfg["api_key"] = api_key
+
+    try:
+        provider = load_provider(cfg)
+    except RuntimeError as exc:
+        console.print(f"[bold red]Error:[/] {exc}")
         sys.exit(1)
 
     # Show active profile — or prompt first-time setup
@@ -377,7 +384,11 @@ def assess(
             except ValueError:
                 pass
 
-    provider = AnthropicProvider(model=model, api_key=api_key)
+    # Show active provider
+    console.print(
+        f"  [color(245)]Provider:[/] [color(220)]{cfg['name']}[/] "
+        f"[color(245)]({cfg['model']})[/]"
+    )
 
     # ── v1.4: Unified data resolver ───────────────────────────────────
     from core.data.resolver import VendorDataResolver as _Resolver
@@ -414,7 +425,7 @@ def assess(
         console.print()
         console.print(
             "  [color(245)]New vendor — no intake data on file.[/]\n\n"
-            "  [color(245)]a)[/]  Run quick intake (12 questions, ~3 min)\n"
+            "  [color(245)]a)[/]  Run quick intake (11 questions, ~3 min)\n"
             "       Better accuracy and risk context\n\n"
             "  [color(245)]s)[/]  Skip — assess with available data only\n"
         )
@@ -514,6 +525,10 @@ def assess(
                 docs_folder=docs_folder,
                 integration_context=_integration_context,
             )
+        # Stamp provider info on result for report footer
+        assessment.result.provider_name = cfg["name"]
+        assessment.result.provider_model = cfg["model"]
+
         legal_result = getattr(assessment.result, "legal_bandit_result", None)
         if legal_result:
             _CONTRACT_DIMS = {"D2", "D5", "D7", "D8"}
@@ -791,7 +806,8 @@ def rubric(dim: str | None) -> None:
 @click.option("--drive",    is_flag=True, help="Configure Google Drive integration")
 @click.option("--stack",    is_flag=True, help="Configure your tech stack")
 @click.option("--notify",   is_flag=True, help="Configure IT notification settings")
-def setup(reset: bool, show: bool, advanced: bool, drive: bool, stack: bool, notify: bool) -> None:
+@click.option("--provider", "setup_provider", is_flag=True, help="Configure AI provider")
+def setup(reset: bool, show: bool, advanced: bool, drive: bool, stack: bool, notify: bool, setup_provider: bool) -> None:
     """Configure your industry and regulatory profile.
 
     Runs a short wizard (5 core + up to 3 conditional questions) that
@@ -806,12 +822,17 @@ def setup(reset: bool, show: bool, advanced: bool, drive: bool, stack: bool, not
       bandit setup --drive
       bandit setup --stack
       bandit setup --notify
+      bandit setup --provider
       bandit setup --advanced
     """
     from rich.console import Console
     from cli.setup import run_wizard, show_config
 
     con = Console()
+
+    if setup_provider:
+        _run_provider_setup(con)
+        return
 
     if drive:
         _run_drive_setup(con)
@@ -1044,6 +1065,174 @@ def _run_notify_setup(con) -> None:
         con.print(f"  [color(196)]✗[/]  Could not save config: {e}\n")
 
 
+def _run_provider_setup(con) -> None:
+    """Interactive AI provider selection wizard."""
+    import pathlib
+    import yaml
+    from core.config import load_config
+    from rich.prompt import Prompt
+
+    con.print("\n  [bold color(172)]PROVIDER SETUP[/]\n")
+    con.print("  [color(245)]Which AI provider would you like to use?[/]\n")
+
+    providers = [
+        (
+            "anthropic",
+            "Claude (Anthropic) — recommended",
+            "Best accuracy for GRC/privacy analysis",
+            "ANTHROPIC_API_KEY",
+            "~$0.01–0.05 per vendor assessment",
+        ),
+        (
+            "openai",
+            "GPT-4o (OpenAI)",
+            "Strong general performance",
+            "OPENAI_API_KEY",
+            "~$0.05–0.15 per vendor assessment",
+        ),
+        (
+            "gemini",
+            "Gemini 2.0 Flash (Google)",
+            "Fast and very low cost",
+            "GEMINI_API_KEY",
+            "~$0.00–0.01 per vendor assessment",
+        ),
+        (
+            "ollama",
+            "Ollama (local, free)",
+            "Fully local — no API key, no cost",
+            None,
+            "Free (runs on your machine)",
+        ),
+        (
+            "mistral",
+            "Mistral",
+            "European provider — good for EU compliance",
+            "MISTRAL_API_KEY",
+            "~$0.02–0.08 per vendor assessment",
+        ),
+    ]
+
+    for i, (_, label, desc, env_var, cost) in enumerate(providers, 1):
+        con.print(f"  [color(220)]{i}.[/]  [bold]{label}[/]")
+        con.print(f"       {desc}")
+        if env_var:
+            con.print(f"       Requires: [color(220)]{env_var}[/]")
+        con.print(f"       Cost: {cost}")
+        con.print()
+
+    while True:
+        raw = Prompt.ask(
+            "  Enter number", default="1"
+        ).strip()
+        try:
+            idx = int(raw) - 1
+            if 0 <= idx < len(providers):
+                break
+        except ValueError:
+            pass
+        con.print(f"  [red]Please enter 1–{len(providers)}[/]")
+
+    name, label, _, env_var, _ = providers[idx]
+
+    default_models = {
+        "anthropic": "claude-haiku-4-5-20251001",
+        "openai":    "gpt-4o",
+        "gemini":    "gemini-2.0-flash",
+        "ollama":    "llama3",
+        "mistral":   "mistral-large-latest",
+    }
+
+    # Ask for API key (skip for Ollama)
+    api_key = ""
+    if env_var:
+        import os
+        existing = os.environ.get(env_var, "")
+        if existing:
+            con.print(
+                f"\n  [green]✓[/green] [color(245)]{env_var} found in environment[/]"
+            )
+        else:
+            con.print(
+                f"\n  [color(245)]Enter your API key, or leave blank to use "
+                f"${env_var} env var later.[/]"
+            )
+            api_key = Prompt.ask(
+                "  API key", default="", password=True
+            ).strip()
+
+    # Ask for model
+    default_model = default_models[name]
+    con.print(
+        f"\n  [color(245)]Model (default: [color(220)]{default_model}[/][color(245)]):[/]"
+    )
+    model = Prompt.ask(
+        "  Model", default=default_model
+    ).strip()
+
+    # Ollama base URL
+    ollama_url = "http://localhost:11434"
+    if name == "ollama":
+        con.print(
+            "\n  [color(245)]Ollama base URL:[/]"
+        )
+        ollama_url = Prompt.ask(
+            "  URL", default=ollama_url
+        ).strip()
+
+    # Save to config
+    cfg = load_config() or {}
+    cfg["provider"] = {
+        "name": name,
+        "model": model,
+    }
+    if api_key:
+        cfg["provider"]["api_key"] = api_key
+    if name == "ollama":
+        cfg["provider"]["ollama_base_url"] = ollama_url
+
+    config_path = pathlib.Path("bandit.config.yml")
+    try:
+        config_path.write_text(
+            yaml.dump(cfg, default_flow_style=False, allow_unicode=True)
+        )
+        con.print(
+            f"\n  [green]✓[/green] Provider saved: "
+            f"[bold]{name}[/] ({model})"
+        )
+    except Exception as e:
+        con.print(f"  [color(196)]✗[/]  Could not save config: {e}\n")
+        return
+
+    # Test connection
+    from rich.prompt import Confirm
+    if Confirm.ask(
+        "\n  Test connection?", default=True
+    ):
+        con.print("  [color(245)]Sending test prompt…[/]")
+        try:
+            from core.config import BanditConfig
+            from core.llm.factory import load_provider
+            test_cfg = BanditConfig(cfg).get_provider_config()
+            test_provider = load_provider(test_cfg)
+            resp = test_provider.complete_json(
+                prompt='Return exactly: {"status": "ok"}',
+                max_tokens=50,
+            )
+            if resp.get("status") == "ok":
+                con.print("  [green]✓[/green] Connection OK\n")
+            else:
+                con.print(
+                    f"  [green]✓[/green] Provider responded "
+                    f"(got: {resp})\n"
+                )
+        except Exception as e:
+            con.print(
+                f"  [color(196)]✗[/]  Connection failed: {e}\n"
+                f"  [color(245)]Check your API key and try again.[/]\n"
+            )
+
+
 def _run_drive_setup(con) -> None:
     """Interactive Google Drive setup wizard with progress saving."""
     import json
@@ -1241,12 +1430,16 @@ def _run_drive_setup(con) -> None:
 @main.command()
 @click.argument("file", type=click.Path(exists=True, readable=True, dir_okay=False))
 @click.option(
-    "--model", default="claude-haiku-4-5-20251001", metavar="MODEL", show_default=True,
-    help="Claude model ID",
+    "--model", default=None, metavar="MODEL",
+    help="Model ID (overrides config)",
 )
 @click.option(
-    "--api-key", default=None, metavar="KEY", envvar="ANTHROPIC_API_KEY",
-    help="Anthropic API key (default: $ANTHROPIC_API_KEY)",
+    "--api-key", default=None, metavar="KEY",
+    help="API key (overrides config and env var)",
+)
+@click.option(
+    "--provider", "provider_name", default=None, metavar="NAME",
+    help="Provider name: anthropic, openai, gemini, ollama, mistral",
 )
 @click.option(
     "--out-dir", default="reports", metavar="DIR", show_default=True,
@@ -1262,8 +1455,9 @@ def _run_drive_setup(con) -> None:
 @click.option("--drive", is_flag=True, default=False, help="Fetch vendor documents from Google Drive for each vendor")
 def batch(
     file: str,
-    model: str,
+    model: str | None,
     api_key: str | None,
+    provider_name: str | None,
     out_dir: str,
     docs_root: str | None,
     drive: bool,
@@ -1288,15 +1482,23 @@ def batch(
     from rich.text import Text
     from cli.terminal import assessment_progress
     from core.agents.privacy_bandit import PrivacyBandit
-    from core.llm.anthropic import AnthropicProvider
+    from core.config import BanditConfig
+    from core.llm.factory import load_provider
 
     con = Console()
 
-    if not api_key:
-        con.print(
-            "[bold red]Error:[/] ANTHROPIC_API_KEY not set.\n"
-            "Set the environment variable or pass [color(220)]--api-key <key>[/]."
-        )
+    cfg = BanditConfig().get_provider_config()
+    if provider_name:
+        cfg["name"] = provider_name
+    if model:
+        cfg["model"] = model
+    if api_key:
+        cfg["api_key"] = api_key
+
+    try:
+        provider = load_provider(cfg)
+    except RuntimeError as exc:
+        con.print(f"[bold red]Error:[/] {exc}")
         sys.exit(1)
 
     # Parse vendors file — supports up to 4 columns:
@@ -1321,7 +1523,7 @@ def batch(
     out_path = pathlib.Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    provider = AnthropicProvider(model=model, api_key=api_key)
+    con.print(f"  [color(245)]Provider: {cfg['name']} ({cfg['model']})[/]")
     date = datetime.date.today().isoformat()
     results = []   # (vendor, tier, score, report_path, error)
 
@@ -1592,14 +1794,18 @@ def profile(vendor: str | None, show: bool, unknown: bool) -> None:
 )
 @click.option("--drive", is_flag=True, default=False, help="Fetch vendor documents from Google Drive")
 @click.option(
-    "--api-key", default=None, metavar="KEY", envvar="ANTHROPIC_API_KEY",
-    help="Anthropic API key (default: $ANTHROPIC_API_KEY)",
+    "--api-key", default=None, metavar="KEY",
+    help="API key (overrides config and env var)",
 )
 @click.option(
-    "--model", default="claude-haiku-4-5-20251001", metavar="MODEL", show_default=True,
-    help="Claude model ID",
+    "--model", default=None, metavar="MODEL",
+    help="Model ID (overrides config)",
 )
-def legal(vendor: str, docs: str | None, drive: bool, api_key: str | None, model: str) -> None:
+@click.option(
+    "--provider", "provider_name", default=None, metavar="NAME",
+    help="Provider name: anthropic, openai, gemini, ollama, mistral",
+)
+def legal(vendor: str, docs: str | None, drive: bool, api_key: str | None, model: str | None, provider_name: str | None) -> None:
     """Run Legal Bandit contract gap analysis.
 
     Reads DPA, MSA, and SCCs and generates a redline brief for legal review.
@@ -1611,13 +1817,21 @@ def legal(vendor: str, docs: str | None, drive: bool, api_key: str | None, model
     """
     import datetime
     from cli.terminal import console
-    from core.llm.anthropic import AnthropicProvider
+    from core.config import BanditConfig
+    from core.llm.factory import load_provider
 
-    if not api_key:
-        console.print(
-            "[bold red]Error:[/] ANTHROPIC_API_KEY not set.\n"
-            "Set the environment variable or pass [color(220)]--api-key <key>[/]."
-        )
+    cfg = BanditConfig().get_provider_config()
+    if provider_name:
+        cfg["name"] = provider_name
+    if model:
+        cfg["model"] = model
+    if api_key:
+        cfg["api_key"] = api_key
+
+    try:
+        provider = load_provider(cfg)
+    except RuntimeError as exc:
+        console.print(f"[bold red]Error:[/] {exc}")
         sys.exit(1)
 
     if not docs and not drive:
@@ -1628,8 +1842,6 @@ def legal(vendor: str, docs: str | None, drive: bool, api_key: str | None, model
             "  [color(220)]bandit legal \"Vendor\" --drive[/]"
         )
         sys.exit(1)
-
-    provider = AnthropicProvider(model=model, api_key=api_key)
 
     # Resolve docs folder
     docs_folder = docs

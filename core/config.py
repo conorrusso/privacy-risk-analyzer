@@ -583,6 +583,53 @@ class BanditConfig:
             return {}
         return self._cfg.get("notifications", {})
 
+    # ── Provider ──────────────────────────────────────────────────────
+
+    def get_provider_config(self) -> dict:
+        """Return provider configuration from config file.
+
+        Falls back to Anthropic + env var if not set.
+        """
+        provider_cfg = self._cfg.get("provider", {})
+
+        name = provider_cfg.get("name", "anthropic")
+        model = provider_cfg.get("model", None)
+        api_key = provider_cfg.get("api_key", "") or ""
+        ollama_url = provider_cfg.get(
+            "ollama_base_url", "http://localhost:11434"
+        )
+
+        default_models = {
+            "anthropic": "claude-haiku-4-5-20251001",
+            "openai":    "gpt-4o",
+            "gemini":    "gemini-2.0-flash",
+            "ollama":    "llama3",
+            "mistral":   "mistral-large-latest",
+        }
+
+        if not model:
+            model = default_models.get(name, "")
+
+        max_tokens = {
+            "extraction": provider_cfg.get(
+                "max_tokens_extraction", 2000
+            ),
+            "scoring": provider_cfg.get(
+                "max_tokens_scoring", 4000
+            ),
+            "legal": provider_cfg.get(
+                "max_tokens_legal", 6000
+            ),
+        }
+
+        return {
+            "name": name,
+            "model": model,
+            "api_key": api_key,
+            "ollama_base_url": ollama_url,
+            "max_tokens": max_tokens,
+        }
+
     def get_profile(self) -> dict:
         """Return the raw config dict (used for org profile checks)."""
         return self._cfg

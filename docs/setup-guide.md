@@ -42,6 +42,30 @@ Progress is saved after every question. If setup is interrupted (Ctrl+C or crash
 
 ---
 
+## Choosing an AI provider
+
+Bandit works with five AI providers. Run:
+
+```bash
+bandit setup --provider
+```
+
+Or edit `bandit.config.yml` directly under the `provider:` section.
+
+All providers use the same scoring engine — only the extraction and analysis calls use the LLM. Scores are always deterministic once signals are extracted.
+
+| Provider | Best for | Cost |
+|----------|----------|------|
+| Claude (Anthropic) | Best accuracy for GRC/privacy analysis | ~$0.01–0.05/assessment |
+| GPT-4o (OpenAI) | Strong general performance | ~$0.05–0.15/assessment |
+| Gemini 2.0 Flash | Fast, very low cost | ~$0.00–0.01/assessment |
+| Ollama (local) | Privacy-sensitive / offline / free | Free |
+| Mistral | European data residency | ~$0.02–0.08/assessment |
+
+For fully local/offline use, choose Ollama with a model like `llama3` or `mistral`. Quality will be lower than cloud providers but no data leaves your machine.
+
+---
+
 ## Question by question
 
 ### Q1 — Organisation type

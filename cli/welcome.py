@@ -72,6 +72,7 @@ def show_welcome(console: Console | None = None) -> None:
         (_cmd("bandit profile", "", "--unknown"),                   "Profile unrecognised vendors"),
         (_cmd("bandit setup",   ""),                                "Configure your org profile"),
         (_cmd("bandit setup",   "", "--drive"),                     "Connect Google Drive — see docs/google-drive-setup.md"),
+        (_cmd("bandit setup",   "", "--provider"),                  "Configure AI provider"),
         (_cmd("bandit dashboard", ""),                              "Portfolio risk overview"),
         (_cmd("bandit schedule", ""),                               "Reassessment schedule"),
         (_cmd("bandit register", ""),                               "Export TPRM register (CSV / JSON / HTML)"),

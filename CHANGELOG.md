@@ -6,6 +6,31 @@ Format: `Added` new features · `Changed` behaviour or UX · `Fixed` bugs · `Re
 
 ---
 
+## [1.4.1] — 2026-04-22
+
+### Added
+
+Provider-agnostic architecture (fully wired):
+- OpenAI provider (`core/llm/openai_provider.py`) — GPT-4o, GPT-4o-mini
+- Gemini provider (`core/llm/gemini_provider.py`) — Gemini 2.0 Flash, 1.5 Pro
+- Ollama provider (`core/llm/ollama_provider.py`) — local, no API key, free; llama3, mistral, phi3, any Ollama model
+- Mistral provider (`core/llm/mistral_provider.py`) — mistral-large-latest
+- `core/llm/factory.py` — `load_provider()` factory reads from config and returns the right provider instance
+- `bandit setup --provider` wizard — interactive provider selection with connection test
+- `provider:` section in `bandit.config.yml` with model, API key, and token limit config
+- `--provider` flag on `bandit assess`, `bandit batch`, and `bandit legal` for per-run override
+- `max_tokens` configurable per call type (extraction / scoring / legal)
+
+### Changed
+- `_run_single_assessment()` reads provider from config instead of hardcoding AnthropicProvider
+- `bandit assess`, `bandit batch`, `bandit legal` all use provider factory
+- Assessment output shows active provider and model
+- HTML report footer shows provider model
+- `docs/index.html` provider cards updated (claude-sonnet-4-6, gemini-2.0-flash)
+- `BaseLLMProvider` gains `_load_key()` static method for env var / config.env lookup
+
+---
+
 ## [1.4.0] — 2026-04-09
 
 ### Architecture

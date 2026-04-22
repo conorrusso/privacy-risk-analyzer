@@ -49,6 +49,22 @@ class BaseLLMProvider(ABC):
 
     model: str
 
+    @staticmethod
+    def _load_key(env_var: str) -> str:
+        """Load an API key from environment variable or config.env file."""
+        import os
+        from pathlib import Path
+
+        key = os.environ.get(env_var, "")
+        if key:
+            return key
+        env_file = Path.home() / ".bandit" / "config.env"
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                if line.startswith(f"{env_var}="):
+                    return line.split("=", 1)[1].strip()
+        return ""
+
     @abstractmethod
     def complete(
         self,
