@@ -441,20 +441,22 @@ def _dim_section(
     )
 
     # ── Red flags ─────────────────────────────────────────────────────
-    dim_rfs = [rf for rf in result_red_flags if dim_key in rf["dims"]]
+    dim_rfs = [rf for rf in result_red_flags if dim_key in rf.get("dims", [])]
     rf_html = ""
     if dim_rfs:
         rf_items = ""
         for rf in dim_rfs:
-            match_text = _h(rf.get("match", "")[:100])
+            match_text = _h((rf.get("match") or rf.get("message") or "")[:100])
+            label = rf.get("label") or rf.get("name", "")
+            ceiling = rf.get("ceiling")
             rf_items += (
                 f'<div class="rf-item">'
                 f'<div class="rf-sym">⚠</div>'
                 f'<div>'
-                f'<div class="rf-q">&ldquo;{match_text}&rdquo;</div>'
-                f'<div class="rf-l">{_h(rf["label"])}</div>'
-                f'<div class="rf-c">→ Score capped at {rf["ceiling"]}/5</div>'
-                f'</div></div>'
+                + (f'<div class="rf-q">&ldquo;{match_text}&rdquo;</div>' if match_text else "")
+                + f'<div class="rf-l">{_h(label)}</div>'
+                + (f'<div class="rf-c">→ Score capped at {ceiling}/5</div>' if ceiling is not None else "")
+                + f'</div></div>'
             )
         rf_html = f'<div class="sub-sec rf-sec"><h4 class="sh">Red flags triggered</h4>{rf_items}</div>'
 
@@ -740,11 +742,11 @@ def _team_summary(result, assessment, legal_brief_path: str | None = None) -> st
     if not has_iso:
         reqs += '<div class="sec-req">→ Request ISO 27701 or ISO 27001 certificate</div>'
 
-    ai_flags = [rf for rf in result.red_flags if "D6" in rf["dims"]]
-    breach_flags = [rf for rf in result.red_flags if "D5" in rf["dims"]]
+    ai_flags = [rf for rf in result.red_flags if "D6" in rf.get("dims", [])]
+    breach_flags = [rf for rf in result.red_flags if "D5" in rf.get("dims", [])]
 
-    af_html = "".join(f'<div class="sec-flag">⚠ {_h(rf["label"])}</div>' for rf in ai_flags) or "<span style='color:#6B5B4E'>None</span>"
-    bf_html = "".join(f'<div class="sec-flag">⚠ {_h(rf["label"])}</div>' for rf in breach_flags) or "<span style='color:#6B5B4E'>None</span>"
+    af_html = "".join(f'<div class="sec-flag">⚠ {_h(rf.get("label") or rf.get("name", ""))}</div>' for rf in ai_flags) or "<span style='color:#6B5B4E'>None</span>"
+    bf_html = "".join(f'<div class="sec-flag">⚠ {_h(rf.get("label") or rf.get("name", ""))}</div>' for rf in breach_flags) or "<span style='color:#6B5B4E'>None</span>"
 
     security = f"""<div class="tp">
   <div class="tp-hdr" style="background:#1A2A4A">FOR SECURITY</div>
