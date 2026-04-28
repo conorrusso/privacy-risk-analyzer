@@ -887,35 +887,43 @@ def write_html_report(
         "iso_42001_certified":      "ISO 42001",
     }
 
-    # Use Audit Bandit detail when available
-    _certs_detail = getattr(result, "certifications_detail", {})
-    if _certs_detail:
+    # Read directly from audit_bandit_result.raw_result — the authoritative source.
+    # The AgentResult.signals dict holds the flattened + derived signals (currency_status etc.)
+    _ab_result = getattr(result, "audit_bandit_result", None)
+    _ab_raw  = _ab_result.raw_result if (_ab_result and _ab_result.success) else {}
+    _ab_sigs = _ab_result.signals   if (_ab_result and _ab_result.success) else {}
+
+    if _ab_raw:
         _cert_items = []
-        _soc2d = _certs_detail.get("soc2", {})
-        if _soc2d.get("present"):
-            _currency = "✓ Current" if _soc2d.get("is_current") else "⚠ Stale"
-            _excepts = (
-                f" · {_soc2d['exception_count']} exception(s)"
-                if _soc2d.get("exceptions_found") else ""
-            )
-            _privacy = (
-                " · Privacy TSC" if _soc2d.get("privacy_tsc_included") else ""
-            )
-            _cert_items.append(
-                f"SOC 2 {_h(_soc2d.get('type', 'Type II'))} — {_currency}{_excepts}{_privacy}"
-            )
-        _iso1d = _certs_detail.get("iso27001", {})
-        if _iso1d.get("present"):
-            _currency = "✓ Current" if _iso1d.get("is_current") else "⚠ Stale"
-            _cert_items.append(f"ISO 27001 — {_currency}")
-        _iso7d = _certs_detail.get("iso27701", {})
-        if _iso7d.get("present"):
-            _currency = "✓ Current" if _iso7d.get("is_current") else "⚠ Stale"
-            _cert_items.append(f"ISO 27701 — {_currency}")
-        _iso4d = _certs_detail.get("iso42001", {})
-        if _iso4d.get("present"):
-            _currency = "✓ Current" if _iso4d.get("is_current") else "⚠ Stale"
-            _cert_items.append(f"ISO 42001 — {_currency}")
+
+        _soc2s = _ab_raw.get("soc2_signals", {})
+        if _soc2s.get("soc2_type2_present") or _soc2s.get("soc2_type1_present"):
+            _soc2_type    = "Type II" if _soc2s.get("soc2_type2_present") else "Type I"
+            _soc2_curr    = _ab_sigs.get("currency_status", "unknown")
+            _soc2_label   = "✓ Current" if str(_soc2_curr).startswith("current") else ("⚠ Stale" if _soc2_curr == "stale" else "⚠ Outdated")
+            _soc2_privacy = " · Privacy TSC" if _soc2s.get("tsc_privacy_in_scope") else ""
+            _soc2_except  = f" · {_soc2s.get('exception_count', '?')} exception(s)" if _soc2s.get("exceptions_found") else ""
+            _soc2_firm    = f" · {_soc2s['auditor_firm_name']}" if _soc2s.get("auditor_firm_name") else ""
+            _cert_items.append(f"SOC 2 {_soc2_type} — {_soc2_label}{_soc2_privacy}{_soc2_except}{_soc2_firm}")
+
+        _iso1s = _ab_raw.get("iso_27001_signals", {})
+        if _iso1s.get("iso_27001_present"):
+            _iso1_curr  = _ab_sigs.get("iso_27001_currency_status", "unknown")
+            _iso1_label = "✓ Current" if str(_iso1_curr).startswith("current") else "⚠ Expired/Stale"
+            _iso1_inv   = " · ⚠ Unaccredited body" if _iso1s.get("iso_27001_certification_body_accredited") is False else ""
+            _cert_items.append(f"ISO 27001 — {_iso1_label}{_iso1_inv}")
+
+        _iso7s = _ab_raw.get("iso_27701_signals", {})
+        if _iso7s.get("iso_27701_present"):
+            _iso7_curr  = _ab_sigs.get("iso_27701_currency_status", "unknown")
+            _iso7_label = "✓ Current" if str(_iso7_curr).startswith("current") else "⚠ Expired/Stale"
+            _cert_items.append(f"ISO 27701 — {_iso7_label}")
+
+        _iso4s = _ab_raw.get("iso_42001_signals", {})
+        if _iso4s.get("iso_42001_present"):
+            _iso4_curr  = _ab_sigs.get("iso_42001_currency_status", "unknown")
+            _iso4_label = "✓ Current" if str(_iso4_curr).startswith("current") else "⚠ Expired/Stale"
+            _cert_items.append(f"ISO 42001 — {_iso4_label}")
 
         if _cert_items:
             fw_html = (
@@ -926,7 +934,7 @@ def write_html_report(
         else:
             fw_html = '<p class="none-p">Audit documents provided but no current certifications found.</p>'
     else:
-        # Fallback to doc-type based detection
+        # No Audit Bandit result — fall back to doc-type detection
         _fw_labels_detected = [
             _FW_LABELS.get(k, k) for k in result.framework_evidence
         ]
@@ -952,7 +960,6 @@ def write_html_report(
             _ai_rows.append(f"<tr><td>Legal basis</td><td>{_h(str(_air['legal_basis_detail']))}</td></tr>")
         _ai_rows.append(f"<tr><td>EU AI Act addressed</td><td>{'Yes' if _air.get('eu_ai_act_addressed') else 'No'}</td></tr>")
         _ai_rows.append(f"<tr><td>DPA AI restriction clause</td><td>{'Yes' if _air.get('dpa_has_ai_restriction_clause') else 'No'}</td></tr>")
-        _ai_rows.append(f"<tr><td>D6 score recommendation</td><td>{_air.get('d6_score_recommendation', '—')}/5</td></tr>")
 
         _ai_findings = "".join(f"<li>{_h(str(f))}</li>" for f in _ai_result.findings) if _ai_result.findings else "<li>None</li>"
         _ai_questions = "".join(f"<li>{_h(str(q))}</li>" for q in _air.get("questions_for_vendor", []))
@@ -980,32 +987,67 @@ def write_html_report(
         _audr = _audit_result.raw_result
         _audit_items = []
 
-        _asoc2 = _audr.get("soc2", {})
-        if _asoc2.get("present"):
-            _audit_items.append(f"<h3 style='font-size:13px;margin-top:12px;'>SOC 2 {_h(str(_asoc2.get('type', 'Type II')))}</h3>")
+        _asoc2 = _audr.get("soc2_signals", {})
+        if _asoc2.get("soc2_type2_present") or _asoc2.get("soc2_type1_present"):
+            _soc2_type = "Type II" if _asoc2.get("soc2_type2_present") else "Type I"
+            _audit_items.append(f"<h3 style='font-size:13px;margin-top:12px;'>SOC 2 {_soc2_type}</h3>")
             _soc2_rows = []
             if _asoc2.get("audit_period_end"):
                 _soc2_rows.append(f"<tr><td>Audit period end</td><td>{_h(str(_asoc2['audit_period_end']))}</td></tr>")
-            _soc2_rows.append(f"<tr><td>Current</td><td>{'Yes' if _asoc2.get('is_current') else 'No'}</td></tr>")
-            _soc2_rows.append(f"<tr><td>Opinion</td><td>{_h(str(_asoc2.get('opinion', '—')))}</td></tr>")
+            _soc2_curr = _audit_result.signals.get("currency_status", "unknown")
+            _soc2_rows.append(f"<tr><td>Current</td><td>{'Yes' if str(_soc2_curr).startswith('current') else 'No'}</td></tr>")
+            _soc2_rows.append(f"<tr><td>Opinion</td><td>{_h(str(_asoc2.get('opinion_type', '—')))}</td></tr>")
             _soc2_rows.append(f"<tr><td>Exceptions</td><td>{'Yes (' + str(_asoc2.get('exception_count', '?')) + ')' if _asoc2.get('exceptions_found') else 'None'}</td></tr>")
-            _criteria = ", ".join(_asoc2.get("criteria_covered", [])) or "—"
-            _soc2_rows.append(f"<tr><td>Criteria</td><td>{_h(_criteria)}</td></tr>")
-            _soc2_rows.append(f"<tr><td>Privacy TSC</td><td>{'Included' if _asoc2.get('privacy_tsc_included') else 'Not included'}</td></tr>")
+            _tsc_criteria = [
+                t for t, f in [
+                    ("Security", "tsc_security_in_scope"),
+                    ("Availability", "tsc_availability_in_scope"),
+                    ("Confidentiality", "tsc_confidentiality_in_scope"),
+                    ("Processing Integrity", "tsc_processing_integrity_in_scope"),
+                    ("Privacy", "tsc_privacy_in_scope"),
+                ] if _asoc2.get(f)
+            ]
+            _soc2_rows.append(f"<tr><td>Criteria</td><td>{_h(', '.join(_tsc_criteria) or '—')}</td></tr>")
+            _soc2_rows.append(f"<tr><td>Privacy TSC</td><td>{'Included' if _asoc2.get('tsc_privacy_in_scope') else 'Not included'}</td></tr>")
+            if _asoc2.get("auditor_firm_name"):
+                _soc2_rows.append(f"<tr><td>Auditor</td><td>{_h(str(_asoc2['auditor_firm_name']))}</td></tr>")
             _audit_items.append(f"<table><tbody>{''.join(_soc2_rows)}</tbody></table>")
 
-        _aiso1 = _audr.get("iso27001", {})
-        if _aiso1.get("present"):
+        _aiso1 = _audr.get("iso_27001_signals", {})
+        if _aiso1.get("iso_27001_present"):
             _audit_items.append(f"<h3 style='font-size:13px;margin-top:12px;'>ISO 27001</h3>")
             _iso_rows = []
-            if _aiso1.get("cert_date"):
-                _iso_rows.append(f"<tr><td>Certificate date</td><td>{_h(str(_aiso1['cert_date']))}</td></tr>")
-            if _aiso1.get("expiry_date"):
-                _iso_rows.append(f"<tr><td>Expiry</td><td>{_h(str(_aiso1['expiry_date']))}</td></tr>")
-            _iso_rows.append(f"<tr><td>Current</td><td>{'Yes' if _aiso1.get('is_current') else 'No'}</td></tr>")
-            if _aiso1.get("scope"):
-                _iso_rows.append(f"<tr><td>Scope</td><td>{_h(str(_aiso1['scope']))}</td></tr>")
+            if _aiso1.get("iso_27001_issue_date"):
+                _iso_rows.append(f"<tr><td>Certificate date</td><td>{_h(str(_aiso1['iso_27001_issue_date']))}</td></tr>")
+            if _aiso1.get("iso_27001_expiry_date"):
+                _iso_rows.append(f"<tr><td>Expiry</td><td>{_h(str(_aiso1['iso_27001_expiry_date']))}</td></tr>")
+            _iso1_curr = _audit_result.signals.get("iso_27001_currency_status", "unknown")
+            _iso_rows.append(f"<tr><td>Current</td><td>{'Yes' if str(_iso1_curr).startswith('current') else 'No'}</td></tr>")
+            if _aiso1.get("iso_27001_scope_statement"):
+                _iso_rows.append(f"<tr><td>Scope</td><td>{_h(str(_aiso1['iso_27001_scope_statement']))}</td></tr>")
+            if _aiso1.get("iso_27001_certification_body_name"):
+                _iso_rows.append(f"<tr><td>Cert body</td><td>{_h(str(_aiso1['iso_27001_certification_body_name']))}</td></tr>")
             _audit_items.append(f"<table><tbody>{''.join(_iso_rows)}</tbody></table>")
+
+        _aiso7 = _audr.get("iso_27701_signals", {})
+        if _aiso7.get("iso_27701_present"):
+            _audit_items.append(f"<h3 style='font-size:13px;margin-top:12px;'>ISO 27701</h3>")
+            _iso7_rows = []
+            _iso7_curr = _audit_result.signals.get("iso_27701_currency_status", "unknown")
+            _iso7_rows.append(f"<tr><td>Current</td><td>{'Yes' if str(_iso7_curr).startswith('current') else 'No'}</td></tr>")
+            if _aiso7.get("iso_27701_certification_body_name"):
+                _iso7_rows.append(f"<tr><td>Cert body</td><td>{_h(str(_aiso7['iso_27701_certification_body_name']))}</td></tr>")
+            _audit_items.append(f"<table><tbody>{''.join(_iso7_rows)}</tbody></table>")
+
+        _aiso4 = _audr.get("iso_42001_signals", {})
+        if _aiso4.get("iso_42001_present"):
+            _audit_items.append(f"<h3 style='font-size:13px;margin-top:12px;'>ISO 42001</h3>")
+            _iso4_rows = []
+            _iso4_curr = _audit_result.signals.get("iso_42001_currency_status", "unknown")
+            _iso4_rows.append(f"<tr><td>Current</td><td>{'Yes' if str(_iso4_curr).startswith('current') else 'No'}</td></tr>")
+            if _aiso4.get("iso_42001_certification_body_name"):
+                _iso4_rows.append(f"<tr><td>Cert body</td><td>{_h(str(_aiso4['iso_42001_certification_body_name']))}</td></tr>")
+            _audit_items.append(f"<table><tbody>{''.join(_iso4_rows)}</tbody></table>")
 
         # DPA conflicts
         _conflicts = _audr.get("dpa_conflicts", [])

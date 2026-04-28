@@ -1159,13 +1159,9 @@ ISO_COMPOUND_MODIFIERS: list[dict] = [
     },
 ]
 
-# ISO invalidation rules — certificate ignored entirely
-ISO_INVALIDATION_SIGNALS: set[str] = {
-    "iso_certification_body_unaccredited",
-    "iso_27701_without_27001",
-    "iso_certificate_expired",
-    "iso_27001_2013_post_transition",
-}
+# ISO invalidation is handled per-certificate inside _apply_agent_modifiers().
+# Each cert type is invalidated independently based on its own accreditation,
+# currency, and structural signals — one bad cert never kills the others.
 
 # ISO multipliers
 ISO_MULTIPLIERS: dict[str, float] = {
@@ -1590,11 +1586,37 @@ def _apply_agent_modifiers(
     """
     mods: dict[str, float] = {}
 
-    # Check if ISO evidence is invalidated
-    iso_invalidated = any(
-        agent_signals.get(s) is True
-        for s in ISO_INVALIDATION_SIGNALS
+    # ── Per-certificate ISO invalidation ─────────────────────────────
+    # Each cert is evaluated independently; its invalidation only
+    # suppresses modifiers for that cert, not for others.
+    iso_27001_invalidated = (
+        agent_signals.get("iso_27001_certification_body_accredited") is False
+        or agent_signals.get("iso_27001_2013_post_transition") is True
+        or agent_signals.get("iso_27001_currency_status") == "expired"
     )
+    iso_27701_invalidated = (
+        agent_signals.get("iso_27701_certification_body_accredited") is False
+        or agent_signals.get("iso_27701_without_27001") is True
+        or agent_signals.get("iso_27701_currency_status") == "expired"
+    )
+    iso_42001_invalidated = (
+        agent_signals.get("iso_42001_certification_body_accredited") is False
+        or agent_signals.get("iso_42001_currency_status") == "expired"
+    )
+    _iso_inv = {
+        "27001": iso_27001_invalidated,
+        "27701": iso_27701_invalidated,
+        "42001": iso_42001_invalidated,
+    }
+
+    def _iso_cert(name: str) -> str:
+        if name.startswith("iso_27001"):
+            return "27001"
+        if name.startswith("iso_27701"):
+            return "27701"
+        if name.startswith("iso_42001"):
+            return "42001"
+        return "unknown"
 
     # SOC 2 simple modifiers
     soc2_multiplier = 1.0
@@ -1645,50 +1667,56 @@ def _apply_agent_modifiers(
                 applied = weight * soc2_multiplier
                 mods[dim] = mods.get(dim, 0.0) + applied
 
-    # ISO modifiers (skip if invalidated)
-    if not iso_invalidated:
-        iso_multiplier = 1.0
-        for mult_signal, mult_val in ISO_MULTIPLIERS.items():
-            if agent_signals.get(mult_signal) is True:
-                iso_multiplier = min(iso_multiplier, mult_val)
+    # ISO modifiers — per-certificate, with 27001 scope multiplier
+    # iso_27001_multiplier reduces 27001 modifiers when scope is narrow
+    iso_27001_multiplier = 1.0
+    for mult_signal, mult_val in ISO_MULTIPLIERS.items():
+        if agent_signals.get(mult_signal) is True:
+            iso_27001_multiplier = min(iso_27001_multiplier, mult_val)
 
-        for sig_name, dim_weights in ISO_MODIFIERS.items():
+    for sig_name, dim_weights in ISO_MODIFIERS.items():
+        cert = _iso_cert(sig_name)
+        if _iso_inv.get(cert):
+            continue
+        mult = iso_27001_multiplier if cert == "27001" else 1.0
+        val = agent_signals.get(sig_name)
+        if val is None or val is False:
+            continue
+        if val is True:
+            for dim, weight in dim_weights.items():
+                mods[dim] = mods.get(dim, 0.0) + weight * mult
+
+    # ISO compound modifiers — per-certificate
+    for compound in ISO_COMPOUND_MODIFIERS:
+        cert = _iso_cert(compound["name"])
+        if _iso_inv.get(cert):
+            continue
+        mult = iso_27001_multiplier if cert == "27001" else 1.0
+        met = True
+        for sig_name, expected in compound["requires"]:
             val = agent_signals.get(sig_name)
-            if val is None or val is False:
-                continue
-            if val is True:
-                for dim, weight in dim_weights.items():
-                    applied = weight * iso_multiplier
-                    mods[dim] = mods.get(dim, 0.0) + applied
-
-        # ISO compound modifiers
-        for compound in ISO_COMPOUND_MODIFIERS:
-            met = True
-            for sig_name, expected in compound["requires"]:
-                val = agent_signals.get(sig_name)
-                if val is None:
-                    met = False
-                    break
-                if isinstance(expected, bool) and val is not expected:
-                    met = False
-                    break
-                if isinstance(expected, str):
-                    if expected.startswith("current") and isinstance(val, str):
-                        if not val.startswith("current"):
-                            met = False
-                            break
-                    elif val != expected:
+            if val is None:
+                met = False
+                break
+            if isinstance(expected, bool) and val is not expected:
+                met = False
+                break
+            if isinstance(expected, str):
+                if expected.startswith("current") and isinstance(val, str):
+                    if not val.startswith("current"):
                         met = False
                         break
-            # Extra condition: major_nonconformities == 0
-            if met and compound.get("extra_condition") == "iso_27001_major_nonconformities_zero":
-                nc = agent_signals.get("iso_27001_major_nonconformities")
-                if nc is None or (isinstance(nc, int) and nc > 0):
+                elif val != expected:
                     met = False
-            if met:
-                for dim, weight in compound["modifiers"].items():
-                    applied = weight * iso_multiplier
-                    mods[dim] = mods.get(dim, 0.0) + applied
+                    break
+        # Extra condition: major_nonconformities == 0
+        if met and compound.get("extra_condition") == "iso_27001_major_nonconformities_zero":
+            nc = agent_signals.get("iso_27001_major_nonconformities")
+            if nc is None or (isinstance(nc, int) and nc > 0):
+                met = False
+        if met:
+            for dim, weight in compound["modifiers"].items():
+                mods[dim] = mods.get(dim, 0.0) + weight * mult
 
     # AI D6 simple modifiers
     for sig_name, weight in AI_D6_MODIFIERS.items():
